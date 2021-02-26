@@ -10,13 +10,13 @@
 
 ## 效率
 
-  在测试期间使用了纯`Lua`实现了`bson`的序列化与反序列化, 但是经过一段时间的使用与测试在数据上并不乐观;
+  本库使用了纯`Lua`实现了`bson`的序列化与反序列化, 但是经过一段时间的使用与测试发现体验并不乐观; 因为特性原因必须增加复杂的反序列化流程;
   
-  我们主要是在与`mongodb`服务器进行交互的时候回才会使用`bson`, 而交互的编码不会有太多内容所以主要性能问题出现在`bson`的反序列化上.
+  而我们主要在与`mongodb`服务器进行交互的时候回才会使用`bson`, 并且交互请求的编码不会有太多内容所以主要性能问题定位在`bson`的反序列化上.
 
-  经过测试发现纯`Lua`实现的`BSON`反序列化性能十分糟糕，并且在内部会极度影响到用户体验与交互的敏感度; 所以我们内部使用`C`语言重写的反序列化方法.
+  在经过详细的测试后发现纯`Lua`实现的`BSON`反序列化性能十分糟糕，所以最后经过使用使用`C`语言重写的反序列化方法类解决这方面带来的一些负面影响.
   
-  值得一提的时候`C`语言版的实现效率是`Lua`的100倍, 所以不用再担心性能问题了; 并且我们的内部能自动识别用户是否有编译出`C`版本的`bson`实现, 用户仅需运行`编译命令`即可.
+  值得一提的是`C`语言版的实现效率是`Lua`的100倍, 所以不用再担心性能问题了; 并且内部能自动识别用户是否有编译出`C`版本的`bson`实现, 用户秩序执行`编译命令`即可.
 
 ## 安装
 
@@ -33,6 +33,19 @@
 ### 1. 创建对象
 
   `function mongo:new(opt) return mongo  end`
+
+  * opt.host - `string`类型, 服务器域名(默认是:"localhost");
+
+  * opt.port - `integer`类型, 服务器端口(默认是:27017");
+
+  * opt.SSL - `boolean`类型, 是否需要使用`SSL`协议握手;
+
+  * opt.auth_mode - `string`类型, 授权验证模式;
+
+  * opt.username - `string`类型, 授权用户账号;
+
+  * opt.password - `string`类型, 授权用户密码;
+
 
 ### 2. 连接服务器
 
@@ -72,11 +85,29 @@
 
   `function mongo:update(database, collect, filter, set, option) return info, | nil, string  end`
 
+  * `database`  - `string`类型, MongoDB的数据库名称;
+
+  * `collect`   - `string`类型, MongoDB的集合名称;
+
+  * `filter`  - `table`类型, 查询过滤的条件;
+
+  * `set`   - `table`类型, 查询修改的内容;
+
+  * `option`   - `table`类型, 可选参数(`option.upsert`/`option.multi`);
+
   成功返回`table`类型的info, 失败返回`false`与失败信息`string`.
 
 ### 5. 删除语句
 
-  `function mongo:delete(db, table, option) return info, | nil, string  end`
+  `function mongo:delete(database, collect, option) return info, | nil, string  end`
+
+  * `database`  - `string`类型, MongoDB的数据库名称;
+
+  * `collect`   - `string`类型, MongoDB的集合名称;
+
+  * `filter`  - `table`类型, 查询过滤的条件;
+
+  * `option`   - `table`类型, 可选参数(`option.limit`);
 
   成功返回`table`类型的info, 失败返回`false`与失败信息`string`.
 
@@ -137,13 +168,15 @@ if not tab then
 end
 var_dump(tab)
 
+m:close()
+
 require "logging":DEBUG("结束")
 ```
 ```bash
 Candy@CandyMi MSYS ~/stt_trade
 $ ./cfadmin.exe
 true
-[2021-02-26 17:06:38,161] [@script/main.lua:93] [DEBUG] : "开始"
+[2021-02-25 21:06:38,161] [@script/main.lua:93] [DEBUG] : "开始"
 {
       ["insertedCount"] = 2,
       ["acknowledged"] = true,
@@ -197,5 +230,5 @@ true
       ["deletedCount"] = 2,
       ["acknowledged"] = true,
 }
-[2021-02-26 17:06:38,188] [@script/main.lua:132] [DEBUG] : "结束"
+[2021-02-25 21:06:38,188] [@script/main.lua:132] [DEBUG] : "结束"
 ```
