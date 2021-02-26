@@ -28,12 +28,6 @@ local math_random = math.random
 local math_seed = math.randomseed
 local math_toint = math.tointeger
 
---- 预留`非入侵式`的C语言版实现.
-local ok, lbson = pcall(require, "lbson")
-if ok and lbson.__VERSION__ then
-  return lbson
-end
-
 if _VERSION then
   local num = tonumber(_VERSION:sub(5))
   if num and num < 5.4 then
@@ -612,6 +606,12 @@ end
 ---@return string | nil, string    @合法的`bson`字符串
 function bson.bson_encode_order(...)
   return bson_encode_order(...)
+end
+
+-- 如果有可能, 使用C版本的BSON解析器
+local ok, lbson = pcall(require, "lbson")
+if ok and type(lbson) == 'table' then
+  bson.decode = lbson.decode or bson.decode
 end
 
 return bson
