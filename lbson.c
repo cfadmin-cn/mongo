@@ -70,11 +70,6 @@ static inline int32_t read_int32(lua_State *L, struct BSON_T *b) {
   return v;
 }
 
-// 读取uint32_t
-static inline uint32_t read_uint32(lua_State *L, struct BSON_T *b) {
-  return (uint32_t)read_int32(L, b);
-}
-
 // 读取int64_t
 static inline int64_t read_int64(lua_State *L, struct BSON_T *b) {
   bson_assert(L, b, 8);
@@ -84,11 +79,6 @@ static inline int64_t read_int64(lua_State *L, struct BSON_T *b) {
 	b->ptr += 8;
 	b->len -= 8;
   return v ;
-}
-
-// 读取uint64_t
-static inline int64_t read_uint64(lua_State *L, struct BSON_T *b) {
-  return (uint64_t)read_int64(L, b);
 }
 
 // 读取double_t
@@ -175,8 +165,8 @@ static int bson_decode_array(lua_State *L, struct BSON_T *b) {
       case BSON_OBJECTID:
         read_cstring(L, b, &key_len);
         value = read_objectid(L, b, &value_len);
-        char oid[24]; 
-        lua_pushlstring(L, hex_objectid(oid, value), value_len * 2);
+        char oid[25]; 
+        lua_pushlstring(L, hex_objectid(oid, value), 24);
         break;
       case BSON_NULL:
         read_cstring(L, b, &key_len);
@@ -221,10 +211,10 @@ static int bson_decode_array(lua_State *L, struct BSON_T *b) {
         value_len = read_int32(L, b);
         type = read_uint8(L, b);
         if (type == 0x03 || type == 0x04) {
-          char uuid[36];
+          char uuid[37];
           lua_pushlstring(L, hex_spec_uuid(uuid, (const char *)b->ptr), 36);
         } else if (type == 0x05) {
-          char md5[32];
+          char md5[33];
           lua_pushlstring(L, hex_spec_md5(md5, (const char *)b->ptr), 32);
         } else {
           lua_pushlstring(L, (const char *)b->ptr, value_len);
@@ -273,8 +263,8 @@ static int bson_decode_table(lua_State *L, struct BSON_T *b) {
         key = (const char *)read_cstring(L, b, &key_len);
         lua_pushlstring(L, key, key_len);
         value = read_objectid(L, b, &value_len);
-        char oid[24];
-        lua_pushlstring(L, hex_objectid(oid, value), value_len * 2);
+        char oid[25];
+        lua_pushlstring(L, hex_objectid(oid, value), 24);
         break;
       case BSON_NULL:
         key = (const char *)read_cstring(L, b, &key_len);
@@ -327,10 +317,10 @@ static int bson_decode_table(lua_State *L, struct BSON_T *b) {
         value_len = read_int32(L, b);
         type = read_uint8(L, b);
         if (type == 0x03 || type == 0x04) {
-          char uuid[36];
+          char uuid[37];
           lua_pushlstring(L, hex_spec_uuid(uuid, (const char *)b->ptr), 36);
         } else if (type == 0x05) {
-          char md5[32];
+          char md5[33];
           lua_pushlstring(L, hex_spec_md5(md5, (const char *)b->ptr), 32);
         } else {
           lua_pushlstring(L, (const char *)b->ptr, value_len);
