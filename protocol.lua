@@ -117,7 +117,7 @@ local function read_reply(self)
   return header, bson_decode(document)
 end
 
-local function read_msg_reply(self)
+local function read_msg_body(self)
   -- print("开始读取")
   local sock = self.sock
   local header, err = read_msg_header(sock)
@@ -138,13 +138,13 @@ local function read_msg_reply(self)
 end
 
 -- --------- QUERY --------- --
-local function send_query(self, db, table, option)
-  local sections = bson_encode_order({"find", table}, {"filter", option}, {"$db", db}, {"$readPreference", { mode = "primaryPreferred" }})
+local function send_query(self, db, table, filter)
+  local sections = bson_encode_order({"find", table}, {"filter", filter}, {"$db", db}, {"$readPreference", { mode = "primaryPreferred" }})
   return self.sock:send(strpack("<i4i4i4i4i4B", #sections + 21, self.reqid, 0, STR_TO_OPCODE["OP_MSG"], 0, 0)) and self.sock:send(sections)
 end
 
 local function read_query(self)
-  return read_msg_reply(self)
+  return read_msg_body(self)
 end
 -- --------- QUERY --------- --
 
@@ -162,33 +162,34 @@ local function send_insert(self, db, table, array, option)
 end
 
 local function read_insert(self)
-  return read_msg_reply(self)
+  return read_msg_body(self)
 end
 -- --------- INSERT --------- --
 
+
 -- --------- UPDATE --------- --
 local function send_update(self, db, table, filter, update, option)
-  local section1 = bson_encode_order({"update", table}, {"$db", db}, {"ordered", type(option) == 'table' and option.ordered and true or false})
+  local section1 = bson_encode_order({"update", table}, {"$db", db}, {"ordered", true})
   local section2 = bson_encode({q = filter, u = update, upsert = type(option) == 'table' and option.upsert and true or false, multi = type(option) == 'table' and option.multi and true or false} )
   local sections = concat{strpack("<B", 0), section1, strpack("<Bi4z", 1, 8 + 4 + #section2, "updates"), section2 }
   return self.sock:send(strpack("<i4i4i4i4i4", 20 + #sections, self.reqid, 0, STR_TO_OPCODE["OP_MSG"], 0)) and self.sock:send(sections)
 end
 
 local function read_update(self)
-  return read_msg_reply(self)
+  return read_msg_body(self)
 end
 -- --------- UPDATE --------- --
 
 -- --------- DELETE --------- --
 local function send_delete(self, db, table, array, option)
-  local section1 = bson_encode_order({"delete", table}, {"$db", db}, {"ordered", type(option) == 'table' and option.ordered and true or false})
+  local section1 = bson_encode_order({"update", table}, {"$db", db}, {"ordered", true})
   local section2 = bson_encode({q = #array > 0 and { nav_result = array } or array, limit = type(option) == 'table' and toint(option.limit) or 0 })
   local sections = concat{strpack("<B", 0), section1, strpack("<Bi4z", 1, 8 + 4 + #section2, "deletes"), section2 }
   return self.sock:send(strpack("<i4i4i4i4i4", 20 + #sections, self.reqid, 0, STR_TO_OPCODE["OP_MSG"], 0)) and self.sock:send(sections)
 end
 
 local function read_delete(self)
-  return read_msg_reply(self)
+  return read_msg_body(self)
 end
 -- --------- DELETE --------- --
 
@@ -218,8 +219,8 @@ function protocol.send_handshake(self)
 end
 
 ---comment 查询语句
-function protocol.request_query(self, db, table, option)
-  if not send_query(self, db, table, option) then
+function protocol.request_query(self, db, table, filter)
+  if not send_query(self, db, table, filter) then
     return false, "[MONGO ERROR]: Server closed this session when client send query data."
   end
   return read_query(self)

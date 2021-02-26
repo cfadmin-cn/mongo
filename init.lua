@@ -20,6 +20,7 @@ function mongo:ctor(opt)
   self.port = opt.port or 27017
   self.username = opt.username
   self.password = opt.password
+  self.auth_mode = opt.auth_mode
   self.reqid = 1
   self.sock = tcp:new()
   self.have_transaction = false
@@ -64,9 +65,9 @@ function mongo:connect()
 end
 
 ---comment 查询
-function mongo:find(database, collect, filter, option)
+function mongo:find(database, collect, filter)
   assert(type(database) == 'string' and database ~= '' and type(collect) == 'string' and collect ~= '', "Invalid find collect or database.")
-  local tab, err = request_query(self, database, collect, filter, option)
+  local tab, err = request_query(self, database, collect, filter)
   if not tab or tab.errmsg then
     return false, err or string.format('{"errcode":%d,"errmsg":"%s"}', tab.code, tab.errmsg)
   end
