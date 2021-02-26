@@ -40,7 +40,7 @@ local PID   = math_random(1, 1 << 16)
 local INCRY
 
 -- 这段代码让原生lua5.3也可以运行 --
-local crypt, hexencode, hexdecode, sys, new_tab, timestamp, uuid, guid
+local ok, crypt, hexencode, hexdecode, sys, new_tab, timestamp, uuid, guid, lbson
 ok, sys = pcall(require, "sys")
 -- ok = false
 if ok then
@@ -172,18 +172,16 @@ CMD[BSON_OBJECTID] = function (str, pos)
 end
 
 CMD[BSON_BINARY] = function (str, pos)
-  -- local len, typ
-  -- len, typ, pos = strunpack("<i4B", str, pos)
-  -- return sub(str, pos, pos + len - 1), pos + len
   local len, typ
   len, typ, pos = strunpack("<i4B", str, pos)
   local data = sub(str, pos, pos + len - 1)
   if typ == 0x03 or typ == 0x04 then -- UUID
-    -- data = hexencode(data)
     data = fmt("%02x%02x%02x%02x-%02x%02x-%02x%02x-%02x%02x-%02x%02x%02x%02x%02x%02x",
-    byte(data, 1), byte(data, 2), byte(data, 3), byte(data, 4),
-    byte(data, 5), byte(data, 6), byte(data, 7), byte(data, 8), byte(data, 9), byte(data, 10),
-    byte(data, 11), byte(data, 12), byte(data, 13), byte(data, 14), byte(data, 15), byte(data, 16)
+      byte(data, 1),  byte(data, 2),  byte(data, 3),  byte(data, 4),
+      byte(data, 5),  byte(data, 6),
+      byte(data, 7),  byte(data, 8),
+      byte(data, 9),  byte(data, 10),
+      byte(data, 11), byte(data, 12), byte(data, 13), byte(data, 14), byte(data, 15), byte(data, 16)
     )
   elseif typ == 0x05 then            -- MD5
     data = hexencode(data)
@@ -345,7 +343,7 @@ local function advance_encode(buffers, index, func, mode)
     buffers[rawlen(buffers) + 1] = strpack("<Bz", BSON_MAXKEY, index)
   elseif typ == BSON_BINARY then
     buffers[rawlen(buffers) + 1] = strpack("<Bz", BSON_BINARY, index)
-    buffers[rawlen(buffers) + 1] = strpack("<i4B", #v, 0x02)
+    buffers[rawlen(buffers) + 1] = strpack("<i4", #v - 1)
     buffers[rawlen(buffers) + 1] = v
   elseif typ == BSON_ARRAY or typ == BSON_TABLE then
     buffers[rawlen(buffers) + 1] = strpack("<Bz", typ, index)
@@ -490,7 +488,7 @@ end
 function bson.binary(bin)
   assert(type(bin) == 'string')
   return function()
-    return bin, BSON_BINARY
+    return "\x02" .. bin, BSON_BINARY
   end
 end
 
@@ -503,8 +501,9 @@ if uuid then
     return function()
       if type(id) ~= 'string' or #id ~= 32 then
         id = uuid():gsub('-', '')
+        -- print(hexdecode(id))
       end
-      return hexdecode(id), BSON_BINARY
+      return "\x04" .. hexdecode(id), BSON_BINARY
     end
   end
 end
@@ -518,8 +517,9 @@ if guid then
     return function()
       if type(id) ~= 'string' or #id ~= 32 then
         id = guid():gsub('-', '')
+        -- print(hexdecode(id))
       end
-      return hexdecode(id), BSON_BINARY
+      return "\x03" .. hexdecode(id), BSON_BINARY
     end
   end
 end
@@ -623,7 +623,7 @@ function bson.bson_encode_order(...)
 end
 
 -- 如果有可能, 使用C版本的BSON解析器
-local ok, lbson = pcall(require, "lbson")
+ok, lbson = pcall(require, "lbson")
 if ok and type(lbson) == 'table' then
   bson.decode = lbson.decode or bson.decode
 end
