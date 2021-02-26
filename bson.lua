@@ -172,9 +172,23 @@ CMD[BSON_OBJECTID] = function (str, pos)
 end
 
 CMD[BSON_BINARY] = function (str, pos)
+  -- local len, typ
+  -- len, typ, pos = strunpack("<i4B", str, pos)
+  -- return sub(str, pos, pos + len - 1), pos + len
   local len, typ
   len, typ, pos = strunpack("<i4B", str, pos)
-  return sub(str, pos, pos + len - 1), pos + len
+  local data = sub(str, pos, pos + len - 1)
+  if typ == 0x03 or typ == 0x04 then -- UUID
+    -- data = hexencode(data)
+    data = fmt("%02x%02x%02x%02x-%02x%02x-%02x%02x-%02x%02x-%02x%02x%02x%02x%02x%02x",
+    byte(data, 1), byte(data, 2), byte(data, 3), byte(data, 4),
+    byte(data, 5), byte(data, 6), byte(data, 7), byte(data, 8), byte(data, 9), byte(data, 10),
+    byte(data, 11), byte(data, 12), byte(data, 13), byte(data, 14), byte(data, 15), byte(data, 16)
+    )
+  elseif typ == 0x05 then            -- MD5
+    data = hexencode(data)
+  end
+  return data, pos + len
 end
 
 CMD[BSON_DECIMAL] = function (str, pos)
@@ -218,9 +232,9 @@ CMD[BSON_STRING] = function (str, pos)
 end
 
 CMD[BSON_CSTRING] = function (str, pos)
-  local v1
-  v1, _, pos = strunpack("<zz", str, pos)
-  return '/'..v1..'/', pos
+  local v1, v2
+  v1, v2, pos = strunpack("<zz", str, pos)
+  return '/'..v1..'/' .. (v2 == 'i' or ""), pos
 end
 
 -- `table`与`array`的解码方法 --
