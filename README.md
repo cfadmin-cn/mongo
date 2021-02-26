@@ -55,7 +55,7 @@
 
 ### 3. 查询语句
 
-  `function mongo:find(database, collect, filter, option) return info, | nil, string end`
+  `function mongo:find(database, collect, filter, option) return info | nil, string end`
 
   * `database` - `string`类型, MongoDB的数据库名称;
 
@@ -67,7 +67,7 @@
 
 ### 3. 插入语句
 
-  `function mongo:insert(database, collect, documents, option) return info, | nil, string end`
+  `function mongo:insert(database, collect, documents, option) return info | nil, string end`
 
   * `database`  - `string`类型, MongoDB的数据库名称;
 
@@ -81,7 +81,7 @@
 
 ### 4. 更新语句
 
-  `function mongo:update(database, collect, filter, set, option) return info, | nil, string end`
+  `function mongo:update(database, collect, filter, set, option) return info | nil, string end`
 
   * `database`  - `string`类型, MongoDB的数据库名称;
 
@@ -97,7 +97,7 @@
 
 ### 5. 删除语句
 
-  `function mongo:delete(database, collect, option) return info, | nil, string end`
+  `function mongo:delete(database, collect, option) return info | nil, string end`
 
   * `database`  - `string`类型, MongoDB的数据库名称;
 
