@@ -36,24 +36,166 @@
 
 ### 2. 连接服务器
 
-  `function mongo:connect(opt) return true | nil, string  end`
+  `function mongo:connect() return true | nil, string  end`
+
+  成功返回`true`, 失败返回`false`与失败信息`string`,
 
 ### 3. 查询语句
 
-  `function mongo:find(db, table, option) return info, | nil, string  end`
+  `function mongo:find(database, collect, filter, option) return info, | nil, string  end`
+
+  * `database` - `string`类型, MongoDB的数据库名称;
+
+  * `collect`  - `string`类型, MongoDB的集合名称;
+
+  * `filter`   - `table`类型, 一个符合语法规范的查询条件;
+
+  * `option`   - `table`类型, 可选参数(`option.ordered`);
+
+  成功返回`table`类型的info, 失败返回`false`与失败信息`string`.
 
 ### 3. 插入语句
 
-  `function mongo:insert(db, table, option) return info, | nil, string  end`
+  `function mongo:insert(database, collect, documents, option) return info, | nil, string  end`
+
+  * `database`  - `string`类型, MongoDB的数据库名称;
+
+  * `collect`   - `string`类型, MongoDB的集合名称;
+
+  * `documents` - `table数组`类型, 包含(至少)有一个或者多个(可选)文档的数组;
+
+  * `option`   - `table`类型, 可选参数(`option.ordered`);
+
+  成功返回`table`类型的info, 失败返回`false`与失败信息`string`.
 
 ### 4. 更新语句
 
-  `function mongo:update(db, table, option) return info, | nil, string  end`
+  `function mongo:update(database, collect, filter, set, option) return info, | nil, string  end`
+
+  成功返回`table`类型的info, 失败返回`false`与失败信息`string`.
 
 ### 5. 删除语句
 
   `function mongo:delete(db, table, option) return info, | nil, string  end`
 
+  成功返回`table`类型的info, 失败返回`false`与失败信息`string`.
+
 ### 6. 断开连接
 
   `function mongo:close() return nil end`
+
+  此方法无返回值.
+
+## 使用示例:
+
+```lua
+require"utils"
+
+local mongo = require "mongo"
+local bson = require "mongo.bson"
+
+local m = mongo:new {}
+
+print(m:connect())
+
+require "logging":DEBUG("开始")
+
+local database, collect = "mydb", "table"
+
+local tab, err
+
+tab, err = m:insert(database, collect, {
+  { nickname = "車先生", age = 30, ts = bson.timestamp(), nullptr = bson.null(), regex = bson.regex("/先生/i"), uuid = bson.uuid() },
+  { nickname = "車太太", age = 26, ts = bson.timestamp(), nullptr = bson.null(), regex = bson.regex("/太太/i"), guid = bson.guid() },
+})
+if not tab then
+  return print(false, err)
+end
+var_dump(tab)
+
+tab, err = m:find(database, collect)
+if not tab then
+  return print(false, err)
+end
+var_dump(tab)
+
+tab, err = m:update(database, collect, { nickname = "車太太" }, { ["$set"] = { nickname = "車先生" }})
+if not tab then
+  return print(false, err)
+end
+var_dump(tab)
+
+tab, err = m:find(database, collect)
+if not tab then
+  return print(false, err)
+end
+var_dump(tab)
+
+tab, err = m:delete(database, collect, { nickname = "車先生" } )
+if not tab then
+  return print(false, err)
+end
+var_dump(tab)
+
+require "logging":DEBUG("结束")
+```
+```bash
+Candy@CandyMi MSYS ~/stt_trade
+$ ./cfadmin.exe
+true
+[2021-02-26 17:06:38,161] [@script/main.lua:93] [DEBUG] : "开始"
+{
+      ["insertedCount"] = 2,
+      ["acknowledged"] = true,
+}
+{
+      [1] = {
+            ["uuid"] = "236c8046-d3d1-443f-8ddd-b8279a08d8d0",
+            ["_id"] = "6038ba1e49672591aca5a638",
+            ["nullptr"] = userdata: 0x0,
+            ["age"] = 30,
+            ["regex"] = "/先生/",
+            ["ts"] = 1614330398161,
+            ["nickname"] = "車先生",
+      },
+      [2] = {
+            ["_id"] = "6038ba1e49672591aca5a639",
+            ["nullptr"] = userdata: 0x0,
+            ["age"] = 26,
+            ["regex"] = "/太太/",
+            ["ts"] = 1614330398161,
+            ["guid"] = "4a538113-9cae-b63e-6038-ba1e064c7fa5",
+            ["nickname"] = "車太太",
+      },
+}
+{
+      ["matchedCount"] = 1,
+      ["acknowledged"] = true,
+      ["modifiedCount"] = 1,
+}
+{
+      [1] = {
+            ["uuid"] = "236c8046-d3d1-443f-8ddd-b8279a08d8d0",
+            ["_id"] = "6038ba1e49672591aca5a638",
+            ["nullptr"] = userdata: 0x0,
+            ["age"] = 30,
+            ["regex"] = "/先生/",
+            ["ts"] = 1614330398161,
+            ["nickname"] = "車先生",
+      },
+      [2] = {
+            ["_id"] = "6038ba1e49672591aca5a639",
+            ["nullptr"] = userdata: 0x0,
+            ["age"] = 26,
+            ["regex"] = "/太太/",
+            ["ts"] = 1614330398161,
+            ["guid"] = "4a538113-9cae-b63e-6038-ba1e064c7fa5",
+            ["nickname"] = "車先生",
+      },
+}
+{
+      ["deletedCount"] = 2,
+      ["acknowledged"] = true,
+}
+[2021-02-26 17:06:38,188] [@script/main.lua:132] [DEBUG] : "结束"
+```
