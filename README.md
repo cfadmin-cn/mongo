@@ -6,7 +6,7 @@
 
   * 类似`mongo shell`的语法减少了学习成本, 简单易用的`API`可以让大家更容易上手使用;
 
-  * 丰富的类型支持(`string`/`number`/`table`/`array`/`null`/`datetime`/`timestamp`/`objectid`/`int32`/`int64`/`minkey`/`maxkey`/`uuid`/`md5`/`binary`/`regex`);
+  * 丰富的类型支持(`string`/`double`/`table`/`array`/`null`/`datetime`/`timestamp`/`objectid`/`int32`/`int64`/`minkey`/`maxkey`/`uuid`/`md5`/`binary`/`regex`);
 
 ## 效率
 
