@@ -40,7 +40,7 @@ local PID   = math_random(1, 1 << 16)
 local INCRY
 
 -- 这段代码让原生lua5.3也可以运行 --
-local ok, crypt, hexencode, hexdecode, sys, new_tab, timestamp, uuid, guid, lbson
+local ok, crypt, hexencode, hexdecode, sys, new_tab, timestamp, md5, uuid, guid, lbson
 ok, sys = pcall(require, "sys")
 -- ok = false
 if ok then
@@ -61,6 +61,7 @@ if ok and type(crypt) == 'table' then
   hexdecode = crypt.hexdecode
   uuid = crypt.uuid
   guid = crypt.guid
+  md5 = crypt.md5
 else
   local function decode (ss)
     return tostring(tonumber(ss, 16)):char()
@@ -75,27 +76,6 @@ else
   hexdecode = function (str)
     local s = gsub(assert(#str & 0x01 == 0x00 and str, "Invalid hexencode."), "..", decode)
     return s
-  end
-  uuid = function ()
-    local bytes = new_tab(16, 0)
-    for index = 1, 16 do
-      local b = bytes[index - 1]
-      if not b then
-        b = math_random(1, 1 << 32)
-      end
-      bytes[index] = ( b ~ (b | math_random(1, 1 << 24) ) | math_random(1, 1 << 16) ) & 0xFF
-    end
-    bytes[7] = bytes[7] & 0x0f;                       -- clear version
-    bytes[7] = bytes[7] | 0x40;                       -- set version 3/4
-    bytes[9] = bytes[9] & 0x3f;                       -- clear variant
-    bytes[9] = bytes[9] | 0x80;                       -- set IETF variant
-    return concat({
-      hexencode(strpack("<BBBB",     bytes[01], bytes[02], bytes[03], bytes[04])),
-      hexencode(strpack("<BB",       bytes[05], bytes[06])),
-      hexencode(strpack("<BB",       bytes[07], bytes[08])),
-      hexencode(strpack("<BB",       bytes[09], bytes[10])),
-      hexencode(strpack("<BBBBBB",   bytes[11], bytes[12], bytes[13], bytes[14], bytes[15], bytes[16]))
-    }, '-')
   end
 end
 -- 这段代码让原生lua5.3+也可以运行 --
@@ -232,7 +212,7 @@ end
 CMD[BSON_CSTRING] = function (str, pos)
   local v1, v2
   v1, v2, pos = strunpack("<zz", str, pos)
-  return '/'..v1..'/' .. (v2 == 'i' or ""), pos
+  return '/'..v1..'/' .. (v2 == 'i' and "i" or ""), pos
 end
 
 -- `table`与`array`的解码方法 --
@@ -507,6 +487,18 @@ function bson.binary(bin)
   assert(type(bin) == 'string')
   return function()
     return "\x02" .. bin, BSON_BINARY
+  end
+end
+
+if md5 then
+  ---comment `MD5`类型的构造方法(只有`cfadmin`框架才可以使用)
+  ---@param  buffer string   @二进制字符串
+  ---@return function        @该类型的构造方法
+  function bson.md5(buffer)
+    assert(type(buffer) ~= 'string' or #buffer ~= 32)
+    return function()
+      return "\x05" .. hexdecode(buffer), BSON_BINARY
+    end
   end
 end
 
