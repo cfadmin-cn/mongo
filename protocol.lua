@@ -182,7 +182,7 @@ end
 
 -- --------- DELETE --------- --
 local function send_delete(self, db, table, array, option)
-  local section1 = bson_encode_order({"update", table}, {"$db", db}, {"ordered", true})
+  local section1 = bson_encode_order({"delete", table}, {"$db", db}, {"ordered", true})
   local section2 = bson_encode({q = #array > 0 and { nav_result = array } or array, limit = type(option) == 'table' and toint(option.limit) or 0 })
   local sections = concat{strpack("<B", 0), section1, strpack("<Bi4z", 1, 8 + 4 + #section2, "deletes"), section2 }
   return self.sock:send(strpack("<i4i4i4i4i4", 20 + #sections, self.reqid, 0, STR_TO_OPCODE["OP_MSG"], 0)) and self.sock:send(sections)
