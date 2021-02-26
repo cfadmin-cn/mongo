@@ -304,7 +304,7 @@ end
 
 
 -- `table`与`array`的编码方法 --
-local array_encode, table_encode, normal_encode, base_encode
+local array_encode, table_encode, normal_encode
 
 local function number_encode(buffers, index, value, mode)
   if mode == BSON_ARRAY then
@@ -367,38 +367,6 @@ normal_encode = function (buffers, index, value, mode)
   return
 end
 
-base_encode = function (tab, buffers, index, value, mode)
-  if mode == BSON_ARRAY then
-    index = index - 1
-  end
-  while 1 do
-    if value == null then -- null
-      buffers[rawlen(buffers) + 1] = strpack("<Bz", BSON_NULL, index)
-    elseif type(value) == "function" then
-      -- 闭包返回的类型可以让编码器知道应该如何编码
-      advance_encode(buffers, index, value, mode)
-    elseif type(value) == 'number' then
-      number_encode(buffers, index, value, mode)
-    elseif type(value) == 'string' then
-      buffers[rawlen(buffers) + 1] = strpack("<Bz", BSON_STRING, index)
-      buffers[rawlen(buffers) + 1] = strpack("<I4z", rawlen(value) + 1, value)
-    elseif type(value) == 'boolean' then
-      buffers[rawlen(buffers) + 1] = strpack("<BzB", BSON_BOOLEAN, index, value and 1 or 0)
-    elseif type(value) == 'table' then
-      normal_encode(buffers, index, value, mode)
-    end
-    index, value = next(tab, index)
-    if not index then
-      break
-    end
-    if mode == BSON_ARRAY then
-      index = assert(type(index) == 'number' and index, "invalid key type: " .. type(index))
-    else
-      index = assert(type(index) == 'string' and index, "invalid key type: " .. type(index))
-    end
-  end
-end
-
 local tab_all = new_tab(3, 0)
 
 local function concat_all(buffers)
@@ -418,7 +386,33 @@ array_encode = function (tab)
     return table_encode(tab)
   end
   local buffers = new_tab(rawlen(tab), 0)
-  base_encode(tab, buffers, index, value, BSON_ARRAY)
+  local mode = BSON_ARRAY
+  while 1 do
+    if value == null then -- null
+      buffers[rawlen(buffers) + 1] = strpack("<Bz", BSON_NULL, index - 1)
+    elseif type(value) == "function" then
+      -- 闭包返回的类型可以让编码器知道应该如何编码
+      advance_encode(buffers, index - 1, value, mode)
+    elseif type(value) == 'number' then
+      number_encode(buffers, index - 1, value, mode)
+    elseif type(value) == 'string' then
+      buffers[rawlen(buffers) + 1] = strpack("<Bz", BSON_STRING, index - 1)
+      buffers[rawlen(buffers) + 1] = strpack("<I4z", rawlen(value) + 1, value)
+    elseif type(value) == 'boolean' then
+      buffers[rawlen(buffers) + 1] = strpack("<BzB", BSON_BOOLEAN, index - 1, value and 1 or 0)
+    elseif type(value) == 'table' then
+      normal_encode(buffers, index - 1, value, mode)
+    end
+    index, value = next(tab, index)
+    if not index then
+      break
+    end
+    if mode == BSON_ARRAY then
+      index = assert(type(index) == 'number' and index, "invalid key type: " .. type(index))
+    else
+      index = assert(type(index) == 'string' and index, "invalid key type: " .. type(index))
+    end
+  end
   return concat_all(buffers)
 end
 
@@ -432,7 +426,29 @@ table_encode = function (tab)
     return array_encode(tab)
   end
   local buffers = new_tab(0, 32)
-  base_encode(tab, buffers, key, value, BSON_TABLE)
+  local mode = BSON_TABLE
+  while 1 do
+    if value == null then -- null
+      buffers[rawlen(buffers) + 1] = strpack("<Bz", BSON_NULL, key)
+    elseif type(value) == "function" then
+      -- 闭包返回的类型可以让编码器知道应该如何编码
+      advance_encode(buffers, key, value, mode)
+    elseif type(value) == 'number' then
+      number_encode(buffers, key, value, mode)
+    elseif type(value) == 'string' then
+      buffers[rawlen(buffers) + 1] = strpack("<Bz", BSON_STRING, key)
+      buffers[rawlen(buffers) + 1] = strpack("<I4z", rawlen(value) + 1, value)
+    elseif type(value) == 'boolean' then
+      buffers[rawlen(buffers) + 1] = strpack("<BzB", BSON_BOOLEAN, key, value and 1 or 0)
+    elseif type(value) == 'table' then
+      normal_encode(buffers, key, value, mode)
+    end
+    key, value = next(tab, key)
+    if not key then
+      break
+    end
+    key = assert(type(key) == 'string' and key, "invalid key type: " .. type(key))
+  end
   return concat_all(buffers)
 end
 
