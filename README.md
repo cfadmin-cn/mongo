@@ -16,7 +16,7 @@
 
   在经过详细的测试后发现纯`Lua`实现的`BSON`反序列化性能十分糟糕，所以最后经过使用使用`C`语言重写的反序列化方法类解决这方面带来的一些负面影响.
   
-  值得一提的是`C`语言版的实现效率是`Lua`的100倍, 所以不用再担心性能问题了; 并且内部能自动识别用户是否有编译出`C`版本的`bson`实现, 用户秩序执行`编译命令`即可.
+  值得一提的是`C`语言版的实现效率是`Lua`的`100`倍, 所以不用再担心性能问题了; 并且内部能自动检查用户是否有编译出`C`版本的`bson`实现, 用户`有需要`编译即可.
 
 ## 安装
 
@@ -32,7 +32,7 @@
 
 ### 1. 创建对象
 
-  `function mongo:new(opt) return mongo  end`
+  `function mongo:new(opt) return mongo end`
 
   * opt.host - `string`类型, 服务器域名(默认是:"localhost");
 
@@ -49,13 +49,13 @@
 
 ### 2. 连接服务器
 
-  `function mongo:connect() return true | nil, string  end`
+  `function mongo:connect() return true | nil, string end`
 
   成功返回`true`, 失败返回`false`与失败信息`string`,
 
 ### 3. 查询语句
 
-  `function mongo:find(database, collect, filter, option) return info, | nil, string  end`
+  `function mongo:find(database, collect, filter, option) return info, | nil, string end`
 
   * `database` - `string`类型, MongoDB的数据库名称;
 
@@ -63,13 +63,11 @@
 
   * `filter`   - `table`类型, 一个符合语法规范的查询条件;
 
-  * `option`   - `table`类型, 可选参数(`option.ordered`);
-
   成功返回`table`类型的info, 失败返回`false`与失败信息`string`.
 
 ### 3. 插入语句
 
-  `function mongo:insert(database, collect, documents, option) return info, | nil, string  end`
+  `function mongo:insert(database, collect, documents, option) return info, | nil, string end`
 
   * `database`  - `string`类型, MongoDB的数据库名称;
 
@@ -83,7 +81,7 @@
 
 ### 4. 更新语句
 
-  `function mongo:update(database, collect, filter, set, option) return info, | nil, string  end`
+  `function mongo:update(database, collect, filter, set, option) return info, | nil, string end`
 
   * `database`  - `string`类型, MongoDB的数据库名称;
 
@@ -99,7 +97,7 @@
 
 ### 5. 删除语句
 
-  `function mongo:delete(database, collect, option) return info, | nil, string  end`
+  `function mongo:delete(database, collect, option) return info, | nil, string end`
 
   * `database`  - `string`类型, MongoDB的数据库名称;
 
