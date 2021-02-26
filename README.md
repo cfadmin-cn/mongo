@@ -230,3 +230,11 @@ true
 }
 [2021-02-25 21:06:38,188] [@script/main.lua:132] [DEBUG] : "结束"
 ```
+
+## 注意
+
+  * 本驱动仅支持MongoDB 3.6及以上版本.
+
+## LICENSE
+
+  [BSD LICENSE](https://github.com/CandyMi/mongo/blob/master/LICENSE)
