@@ -1,7 +1,9 @@
 local protocol = require "mongo.protocol"
 local request_query = protocol.request_query
-local send_handshake = protocol.send_handshake
+local request_update = protocol.request_update
 local request_insert = protocol.request_insert
+local request_delete = protocol.request_delete
+local send_handshake = protocol.send_handshake
 
 local toint = math.tointeger
 
@@ -62,31 +64,45 @@ function mongo:connect()
 end
 
 ---comment 查询
-function mongo:find(...)
-  local tab, err = request_query(self, ...)
+function mongo:find(database, collect, filter, option)
+  assert(type(database) == 'string' and database ~= '' and type(collect) == 'string' and collect ~= '', "Invalid find collect or database.")
+  local tab, err = request_query(self, database, collect, filter, option)
   if not tab or tab.errmsg then
     return false, err or string.format('{"errcode":%d,"errmsg":"%s"}', tab.code, tab.errmsg)
   end
-  return tab
+  return tab.cursor.firstBatch, tab.id
 end
 
 ---comment 新增
-function mongo:insert(...)
-  local tab, err = request_insert(self, ...)
+function mongo:insert(database, collect, documents, option)
+  assert(type(database) == 'string' and database ~= '' and type(collect) == 'string' and collect ~= '', "Invalid insert collect or database.")
+  assert(type(documents) == 'table' and #documents > 0 and type(documents[1]) == "table", "Invalid insert documents.")
+  local tab, err = request_insert(self, database, collect, documents, option)
   if not tab or tab.errmsg then
     return false, err or string.format('{"errcode":%d,"errmsg":"%s"}', tab.code, tab.errmsg)
   end
-  return { nInserted = toint(tab['n']), Inserted = tab['ok'] == 1 and true or false }
+  return { acknowledged = tab['ok'] == 1 and true or false, insertedCount = toint(tab['n']) }
 end
 
 ---comment 修改
-function mongo:update()
-
+function mongo:update(database, collect, filter, update, option)
+  assert(type(database) == 'string' and database ~= '' and type(collect) == 'string' and collect ~= '', "Invalid update collect or database.")
+  local tab, err = request_update(self, database, collect, filter, update, option)
+  if not tab or tab.errmsg then
+    return false, err or string.format('{"errcode":%d,"errmsg":"%s"}', tab.code, tab.errmsg)
+  end
+  return{ acknowledged = tab['ok'] == 1 and true or false, matchedCount = toint(tab['n']), modifiedCount = toint(tab['nModified']) }
 end
 
 ---comment 删除
-function mongo:delete()
-
+function mongo:delete(database, collect, array, option)
+  assert(type(database) == 'string' and database ~= '' and type(collect) == 'string' and collect ~= '', "Invalid delete collect or database.")
+  assert(type(array) == 'table', "Invalid delete filter.")
+  local tab, err = request_delete(self, database, collect, array, option)
+  if not tab or tab.errmsg then
+    return false, err or string.format('{"errcode":%d,"errmsg":"%s"}', tab.code, tab.errmsg)
+  end
+  return { acknowledged = tab['ok'] == 1 and true or false, deletedCount = toint(tab['n']),  }
 end
 
 ---comment 关闭连接
