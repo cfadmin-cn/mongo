@@ -1,4 +1,4 @@
-.PHONY : build clean prepare
+.PHONY : build clean
 
 default :
 	@echo "======================================="
@@ -19,6 +19,7 @@ DLL += -lcore
 build:
 	@$(CC) -o lbson.so lbson.c $(INCLUDES) $(LIBS) $(CFLAGS) $(MICRO) $(DLL)
 	@$(MV) *.so ../
+	@echo 'Successed.'
 
 clean:
 	@$(RM) main *.so
