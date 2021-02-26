@@ -492,8 +492,10 @@ end
 ---@param re string    @合法的java script正则表达式
 ---@return function    @该类型的构造方法
 function bson.regex(re)
+  assert(type(re) == 'string' and re ~= '', "Invalid bson regex.")
   return function ()
-    local v1, v2 = assert(re:match("^/([^/]+)/[.]?"), "invalid regex expressions.")
+    local v1, v2 = re:match("^/([^/]+)/(.?)")
+    assert(v1 and v2, "invalid regex expressions.")
     return strpack("<zz", v1, v2 == 'i' and 'i' or ''), BSON_CSTRING
   end
 end
