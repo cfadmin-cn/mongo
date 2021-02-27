@@ -483,6 +483,16 @@ end
 ---comment BINARY类型的构造方法
 ---@param  bin string  @二进制字符串
 ---@return function    @该类型的构造方法
+function bson.bin(bin)
+  assert(type(bin) == 'string')
+  return function()
+    return "\x00" .. bin, BSON_BINARY
+  end
+end
+
+---comment BINARY类型的构造方法
+---@param  bin string  @二进制字符串
+---@return function    @该类型的构造方法
 function bson.binary(bin)
   assert(type(bin) == 'string')
   return function()
