@@ -306,15 +306,11 @@ function protocol.request_handshake(self)
     return false, "[MONGO ERROR]: Server closed this session when client send hello data."
   end
   local header, response, err = read_reply(self)
-  if not header or response.ok ~= 1 then
-    return false, err or response.errmsg or "[MONGO ERROR]: Unknown Error."
+  if not header or response.ok ~= 1 or response.maxWireVersion < 6 then
+    -- 如果探测到MongoDB版本低于3.6则当做连接失败
+    return false, err or response.errmsg or "[MONGO ERROR]: Version below 3.6 are not supported."
   end
-  -- var_dump(header);
-  -- var_dump(response);
-  -- 如果探测到MongoDB版本低于3.6则当做连接失败
-  if response.maxWireVersion < 6 then
-    return false, "[MONGO ERROR]: versions below 3.6 are not supported."
-  end
+  -- var_dump(header); var_dump(response);
   self.have_transaction = response.maxWireVersion >= 7 -- 是否支持事务
   return response
 end
