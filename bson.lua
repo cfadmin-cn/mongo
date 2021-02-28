@@ -109,16 +109,12 @@ local empty_table = "\x05\x00\x00\x00\x00"
 
 local CMD = {}
 
-CMD[BSON_UNDEFINE] = function (_, _)
-  return assert(nil, "Unsupported field type: [JavaScript code].")
-end
-
 CMD[BSON_DBPOINT] = function (_, _)
-  return assert(nil, "Unsupported field type: [JavaScript code].")
+  return assert(nil, "Unsupported field type: [DB Point code].")
 end
 
 CMD[BSON_SYMBOL] = function (_, _)
-  return assert(nil, "Unsupported field type: [JavaScript code w/ scope].")
+  return assert(nil, "Unsupported field type: [Symbol code].")
 end
 
 CMD[BSON_JSCODE1] = function (_, _)
@@ -127,6 +123,10 @@ end
 
 CMD[BSON_JSCODE2] = function (_, _)
   return assert(nil, "Unsupported field type: [JavaScript code w/ scope].")
+end
+
+CMD[BSON_UNDEFINE] = function (_, pos)
+  return null, pos
 end
 
 CMD[BSON_NULL] = function (_, pos)
@@ -315,19 +315,21 @@ local function advance_encode(buffers, index, func, mode)
     buffers[rawlen(buffers) + 1] = strpack("<Bz", typ, index)
     buffers[rawlen(buffers) + 1] = v
   elseif typ == BSON_DATETIME or typ == BSON_TIMESTAMP then
-    buffers[rawlen(buffers) + 1] = strpack("<Bz", BSON_DATETIME, index)
+    buffers[rawlen(buffers) + 1] = strpack("<Bz", typ, index)
     buffers[rawlen(buffers) + 1] = strpack("i8", v)
   elseif typ == BSON_MINKEY then
-    buffers[rawlen(buffers) + 1] = strpack("<Bz", BSON_MINKEY, index)
+    buffers[rawlen(buffers) + 1] = strpack("<Bz", typ, index)
   elseif typ == BSON_MAXKEY then
-    buffers[rawlen(buffers) + 1] = strpack("<Bz", BSON_MAXKEY, index)
+    buffers[rawlen(buffers) + 1] = strpack("<Bz", typ, index)
   elseif typ == BSON_BINARY then
-    buffers[rawlen(buffers) + 1] = strpack("<Bz", BSON_BINARY, index)
+    buffers[rawlen(buffers) + 1] = strpack("<Bz", typ, index)
     buffers[rawlen(buffers) + 1] = strpack("<i4", #v - 1)
     buffers[rawlen(buffers) + 1] = v
   elseif typ == BSON_ARRAY or typ == BSON_TABLE then
     buffers[rawlen(buffers) + 1] = strpack("<Bz", typ, index)
     buffers[rawlen(buffers) + 1] = empty_table
+  elseif typ == BSON_UNDEFINE then
+    buffers[rawlen(buffers) + 1] = strpack("<Bz", typ, index)
   end
   return
 end
@@ -466,6 +468,14 @@ local bson = { __VERSION__ = 0.1 }
 ---comment 构造C的NULL指针(如果有)
 function bson.null()
   return null
+end
+
+---comment 特殊的数据类型
+---@return function    @该类型的构造方法
+function bson.undefined()
+  return function ()
+    return null, BSON_UNDEFINE
+  end
 end
 
 ---comment 正则表达式

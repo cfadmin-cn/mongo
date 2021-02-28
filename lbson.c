@@ -13,7 +13,7 @@ enum BSON_TYPE_T {
   BSON_TABLE          = 0x03, // (table-字典)
   BSON_ARRAY          = 0x04, // (table-数组)
   BSON_BINARY         = 0x05, // (binary)
-  BSON_UNDEFINE       = 0x06, // (undefined)
+  BSON_UNDEFINED      = 0x06, // (undefined)
   BSON_OBJECTID       = 0x07, // (OBJECT ID)
   BSON_BOOLEAN        = 0x08, // (0 = false, 1 = true)
   BSON_DATETIME       = 0x09, // (int64)
@@ -169,6 +169,7 @@ static int bson_decode_array(lua_State *L, struct BSON_T *b) {
         lua_pushlstring(L, hex_objectid(oid, value), 24);
         break;
       case BSON_NULL:
+      case BSON_UNDEFINED:
         read_cstring(L, b, &key_len);
         lua_pushlightuserdata(L, NULL);
         break;
@@ -267,6 +268,7 @@ static int bson_decode_table(lua_State *L, struct BSON_T *b) {
         lua_pushlstring(L, hex_objectid(oid, value), 24);
         break;
       case BSON_NULL:
+      case BSON_UNDEFINED:
         key = (const char *)read_cstring(L, b, &key_len);
         lua_pushlstring(L, key, key_len);
         lua_pushlightuserdata(L, NULL);
