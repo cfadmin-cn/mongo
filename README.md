@@ -73,6 +73,8 @@
 
   * `filter`   - `table`类型, 一个符合语法规范的查询条件;
 
+  * `option`   - `table`类型, 可选参数(`limit`/`skip`);
+
   成功返回`table`类型的info, 失败返回`false`与失败信息`string`.
 
 ### 3. 插入语句
