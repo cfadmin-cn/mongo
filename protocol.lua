@@ -169,8 +169,8 @@ local function read_msg_body(self)
 end
 
 -- --------- QUERY --------- --
-local function send_query(self, db, table, filter)
-  local sections = bson_encode_order({"find", table}, {"filter", filter}, {"$db", db}, {"$readPreference", { mode = "primaryPreferred" }})
+local function send_query(self, db, table, filter, option)
+  local sections = bson_encode_order({"find", table}, {"filter", filter}, {"limit", type(option) == 'table' and toint(option.limit) or 0}, {"skip", type(option) == 'table' and toint(option.skip) or 0}, {"$db", db})
   return self.sock:send(strpack("<i4i4i4i4i4B", #sections + 21, self.reqid, 0, STR_TO_OPCODE["OP_MSG"], 0, 0)) and self.sock:send(sections)
 end
 
@@ -320,8 +320,8 @@ function protocol.request_handshake(self)
 end
 
 ---comment 查询语句
-function protocol.request_query(self, db, table, filter)
-  if not send_query(self, db, table, filter) then
+function protocol.request_query(self, db, table, filter, option)
+  if not send_query(self, db, table, filter, option) then
     return false, "[MONGO ERROR]: Server closed this session when client send query data."
   end
   return read_query(self)
