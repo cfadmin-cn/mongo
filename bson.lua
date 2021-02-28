@@ -494,7 +494,7 @@ end
 ---@param  bin string  @二进制字符串
 ---@return function    @该类型的构造方法
 function bson.bin(bin)
-  assert(type(bin) == 'string')
+  assert(type(bin) == 'string', "Invalid binary buffers.")
   return function()
     return "\x00" .. bin, BSON_BINARY
   end
@@ -504,7 +504,7 @@ end
 ---@param  bin string  @二进制字符串
 ---@return function    @该类型的构造方法
 function bson.binary(bin)
-  assert(type(bin) == 'string')
+  assert(type(bin) == 'string', "Invalid binary buffers.")
   return function()
     return "\x02" .. bin, BSON_BINARY
   end
@@ -515,7 +515,7 @@ if md5 then
   ---@param  buffer string   @二进制字符串
   ---@return function        @该类型的构造方法
   function bson.md5(buffer)
-    assert(type(buffer) ~= 'string' or #buffer ~= 32)
+    assert(type(buffer) ~= 'string' or #buffer ~= 32, "Invalid MD5 string.")
     return function()
       return "\x05" .. hexdecode(buffer), BSON_BINARY
     end
