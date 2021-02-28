@@ -21,6 +21,7 @@ local sys = require "sys"
 local new_tab = sys.new_tab
 
 local type = type
+local pcall = pcall
 local assert = assert
 
 local find = string.find
@@ -29,6 +30,7 @@ local strpack = string.pack
 local strunpack = string.unpack
 
 local concat = table.concat
+local unpack = table.unpack
 
 local toint = math.tointeger
 
@@ -155,6 +157,9 @@ local function read_msg_body(self)
   if not header or header.opcode ~= STR_TO_OPCODE['OP_MSG'] then
     return false, err or "Invalid MSG TYPE."
   end
+  if header.req_id and header.resp_id ~= self.reqid then
+    return false, "[MONGO ERROR]: Unexpected response request ID."
+  end
   -- print("读取完毕")
   -- var_dump(header)
   if header.msg_len - 20 > 1 then
@@ -165,12 +170,27 @@ local function read_msg_body(self)
     return false, "[MONGO ERROR]: Server closed this session when client read reply."
   end
   self.reqid = self.reqid % MAX_INT32 + 1
-  return bson_decode(document)
+  local ok, info = pcall(bson_decode, document)
+  if not ok then
+    return false, info
+  end
+  return info
 end
 
 -- --------- QUERY --------- --
 local function send_query(self, db, table, filter, option)
-  local sections = bson_encode_order({"find", table}, {"filter", filter}, {"limit", type(option) == 'table' and toint(option.limit) or 0}, {"skip", type(option) == 'table' and toint(option.skip) or 0}, {"$db", db})
+  local query = {{"find", table}, {"filter", filter}, {"limit", type(option) == 'table' and toint(option.limit) or 0}, {"skip", type(option) == 'table' and toint(option.skip) or 0}, {"$db", db}}
+  if type(option) == 'table' and toint(option.cursor) then
+    query = {{"getMore", toint(option.cursor)}, {"collection", table}, {"$db", db}}
+    if toint(option.limit) then
+      query[#query+1] = {"batchSize", type(option) == 'table' and toint(option.limit) or 0}
+    end
+  else
+    if type(option) == 'table' and type(option.sort) == 'table' then
+      query[#query+1] = {"sort", option.sort}
+    end
+  end
+  local sections = bson_encode_order(unpack(query))
   return self.sock:send(strpack("<i4i4i4i4i4B", #sections + 21, self.reqid, 0, STR_TO_OPCODE["OP_MSG"], 0, 0)) and self.sock:send(sections)
 end
 

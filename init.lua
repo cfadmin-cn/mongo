@@ -44,7 +44,7 @@ function mongo:connect()
   local ok, err
   ok, err = self.sock:connect(self.host, self.port)
   if not ok then
-    return false, err or "连接失败."
+    return false, err
   end
   if self.SSL then
     ok, err = self.sock.ssl_handshake()
@@ -72,7 +72,7 @@ function mongo:find(database, collect, filter, option)
   if not tab or tab.errmsg then
     return false, err or fmt('{"errcode":%d,"errmsg":"%s"}', tab.code, tab.errmsg)
   end
-  return tab.cursor.firstBatch, tab.id
+  return tab.cursor.firstBatch or tab.cursor.nextBatch, tab.cursor.id
 end
 
 ---comment 新增
