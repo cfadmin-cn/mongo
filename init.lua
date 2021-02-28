@@ -1,9 +1,13 @@
 local protocol = require "mongo.protocol"
+-- 协议交互
 local request_query = protocol.request_query
 local request_update = protocol.request_update
 local request_insert = protocol.request_insert
 local request_delete = protocol.request_delete
-local send_handshake = protocol.send_handshake
+-- 握手
+local request_auth = protocol.request_auth
+local request_handshake = protocol.request_handshake
+
 
 local toint = math.tointeger
 
@@ -16,25 +20,16 @@ local mongo = class("MongoDB")
 
 function mongo:ctor(opt)
   self.SSL  = opt.SSL
+  self.db   = opt.db or "admin"
   self.host = opt.host or "localhost"
   self.port = opt.port or 27017
   self.username = opt.username
   self.password = opt.password
-  self.auth_mode = opt.auth_mode
+  self.auth_mode = opt.auth_mode or "SCRAM-SHA-1"
   self.reqid = 1
   self.sock = tcp:new()
   self.have_transaction = false
   self.connected = false
-end
-
----comment 授权认证
-function mongo:auth()
-  if not self.password or not self.username then
-    return nil, "Invalid username or password."
-  end
-  self.authing = assert(not self.authing and true, "It is forbidden to call the `auth` method concurrently.")
-  self.authing = nil
-  return true
 end
 
 ---comment 连接服务器
@@ -42,25 +37,29 @@ function mongo:connect()
   if self.connected then
     return true, "already connected."
   end
-  self.connecting = assert(not self.connecting and true, "It is forbidden to call the `connect` method concurrently.")
   if not self.sock then
     self.sock = tcp:new()
   end
-  local ok, err = self.sock:connect(self.host, self.port)
+  local ok, err
+  ok, err = self.sock:connect(self.host, self.port)
   if not ok then
-    self.connecting = nil
     return false, err or "连接失败."
   end
   if self.SSL then
     ok, err = self.sock.ssl_handshake()
     if not ok then
-      self.connecting = nil
       return false, err or "Mongo SSL handshake failed."
     end
   end
-  send_handshake(self)
+  ok, err = request_handshake(self)
+  if not ok then
+    return false, err
+  end
+  ok, err = request_auth(self)
+  if not ok then
+    return false, err
+  end
   self.connected = true
-  self.connecting = nil
   return true
 end
 
@@ -82,7 +81,7 @@ function mongo:insert(database, collect, documents, option)
   if not tab or tab.errmsg then
     return false, err or string.format('{"errcode":%d,"errmsg":"%s"}', tab.code, tab.errmsg)
   end
-  return { acknowledged = tab['ok'] == 1 and true or false, insertedCount = toint(tab['n']) }
+  return { acknowledged = (tab['ok'] == 1 or tab['ok'] == true) and true or false, insertedCount = toint(tab['n']) }
 end
 
 ---comment 修改
@@ -92,7 +91,7 @@ function mongo:update(database, collect, filter, update, option)
   if not tab or tab.errmsg then
     return false, err or string.format('{"errcode":%d,"errmsg":"%s"}', tab.code, tab.errmsg)
   end
-  return{ acknowledged = tab['ok'] == 1 and true or false, matchedCount = toint(tab['n']), modifiedCount = toint(tab['nModified']) }
+  return{ acknowledged = (tab['ok'] == 1 or tab['ok'] == true) and true or false, matchedCount = toint(tab['n']), modifiedCount = toint(tab['nModified']) }
 end
 
 ---comment 删除
@@ -103,7 +102,7 @@ function mongo:delete(database, collect, array, option)
   if not tab or tab.errmsg then
     return false, err or string.format('{"errcode":%d,"errmsg":"%s"}', tab.code, tab.errmsg)
   end
-  return { acknowledged = tab['ok'] == 1 and true or false, deletedCount = toint(tab['n']),  }
+  return { acknowledged = (tab['ok'] == 1 or tab['ok'] == true) and true or false, deletedCount = toint(tab['n']),  }
 end
 
 ---comment 关闭连接

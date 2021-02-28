@@ -8,10 +8,23 @@ local bson_encode = bson.encode
 local bson_decode = bson.decode
 local bson_encode_order = bson.bson_encode_order
 
+local crypt = require "crypt"
+local md5 = crypt.md5
+local sha1 = crypt.sha1
+local xor_str = crypt.xor_str
+local hmac_sha1 = crypt.hmac_sha1
+local randomkey = crypt.randomkey_ex
+local base64decode = crypt.base64decode
+local base64encode = crypt.base64encode
+
 local sys = require "sys"
 local new_tab = sys.new_tab
 
+local type = type
 local assert = assert
+
+local find = string.find
+local fmt = string.format
 local strpack = string.pack
 local strunpack = string.unpack
 
@@ -57,6 +70,22 @@ local function sock_read(sock, bytes)
     end
   end
   return concat(buffers)
+end
+
+local function getn_nonce_payload(username)
+  local nonce = base64encode(randomkey(16))
+  return base64encode(concat({"n,,n=" .. username, ",r=" .. nonce})), nonce
+end
+
+local function salt_password(key, salt, count)
+  salt =  base64decode(salt) .. '\0\0\0\1'
+  local output = hmac_sha1(key, salt)
+  local input = output
+  for _ = 1, count - 1 do
+    input = hmac_sha1(key, input)
+    output = xor_str(output, input)
+  end
+  return output
 end
 
 ---comment 读取公共头部
@@ -121,8 +150,8 @@ local function read_msg_body(self)
   -- print("开始读取")
   local sock = self.sock
   local header, err = read_msg_header(sock)
-  if not header then
-    return false, err
+  if not header or header.opcode ~= STR_TO_OPCODE['OP_MSG'] then
+    return false, err or "Invalid MSG TYPE."
   end
   -- print("读取完毕")
   -- var_dump(header)
@@ -148,7 +177,6 @@ local function read_query(self)
 end
 -- --------- QUERY --------- --
 
-
 -- --------- INSERT --------- --
 local function send_insert(self, db, table, array, option)
   local documents = new_tab(#array, 0)
@@ -165,7 +193,6 @@ local function read_insert(self)
   return read_msg_body(self)
 end
 -- --------- INSERT --------- --
-
 
 -- --------- UPDATE --------- --
 local function send_update(self, db, table, filter, update, option)
@@ -193,19 +220,99 @@ local function read_delete(self)
 end
 -- --------- DELETE --------- --
 
+-- --------- HANDSHAKE --------- --
+local function send_handshake(self)
+  local query = assert(bson_encode_order(table.unpack({{ "isMaster", true }})))
+  return self.sock:send(strpack("<i4i4i4i4i4zi4i4", #query + 39, self.reqid, 0, STR_TO_OPCODE["OP_QUERY"], 0x04, 'admin.$cmd', 0, -1)) and self.sock:send(query)
+end
+-- --------- HANDSHAKE --------- --
 
+-- --------- AUTH --------- --
+local function send_auth(self)
+  local nonce, non = getn_nonce_payload(self.username)
+  local query = assert(bson_encode_order({"saslStart", 1}, {"autoAuthorize", 1}, {"mechanism", self.auth_mode}, {"payload", nonce}))
+  local _ = self.sock:send(strpack("<i4i4i4i4i4zi4i4", #query + 29 + #(self.db ..'.$cmd'), self.reqid, 0, STR_TO_OPCODE["OP_QUERY"], 0x04, self.db ..'.$cmd', 0, -1)) and self.sock:send(query)
+  local header, response, err = read_reply(self)
+  if not header or response.ok ~= 1 then
+    return false, err or response.errmsg or "[MONGO ERROR]: Unknown Error."
+  end
+  if not response['conversationId'] then
+    return false, "Invalid conversationId."
+  end
+  local payload = response["payload"]
+  if not payload then
+    return false, "Invalid payload."
+  end
+  payload = base64decode(payload)
+  -- var_dump(header); var_dump(response);
+  local p = { r = nil, s = nil, i = nil }
+  for key, value in payload:gmatch("([^,=]+)=([^,]+)") do
+    p[key] = value
+  end
+  -- 检查启动协议是否匹配.
+  if not find(p['r'] or "", '^' .. non) then
+    return false, "Invalid nonce when server return data."
+  end
+  local without_proof = "c=biws,r=" .. p['r']
+  local salted_password = salt_password(md5(fmt("%s:mongo:%s", self.username, self.password), true), p['s'], toint(p['i']))
+  local client_key = hmac_sha1(salted_password, "Client Key")
+  local auth_msg = concat({base64decode(nonce):sub(4), payload, without_proof}, ",")
+  local client_sig = hmac_sha1(sha1(client_key), auth_msg)
+  local client_key_sig = xor_str(client_key, client_sig)
+  local client_proof = "p=" .. base64encode(client_key_sig)
+  local client_final = base64encode(without_proof .. ',' .. client_proof)
+	local server_key = hmac_sha1(salted_password, "Server Key")
+	local server_sig = base64encode(hmac_sha1(server_key, auth_msg))
+
+  query = assert(bson_encode_order({"saslContinue", 1}, {"conversationId", response['conversationId']}, {"payload", client_final}))
+  local _ = self.sock:send(strpack("<i4i4i4i4i4zi4i4", #query + 29 + #(self.db ..'.$cmd'), self.reqid, 0, STR_TO_OPCODE["OP_QUERY"], 0x04, self.db ..'.$cmd', 0, -1)) and self.sock:send(query)
+  header, response, err = read_reply(self)
+  if not header or response.ok ~= 1 then
+    return false, err or response.errmsg or "[MONGO ERROR]: Unknown Error."
+  end
+  p = { v = nil}
+  response["payload"] = base64decode(response["payload"])
+  for key, value in string.gmatch(response["payload"], "([^,=]+)=([^,]+)") do
+    p[key] = value
+  end
+	if p['v'] ~= server_sig then
+		return false, "Server returned an invalid signature."
+	end
+  if not response.done then
+    query = assert(bson_encode_order({"saslContinue", 1}, {"conversationId", response['conversationId']}, {"payload", ""}))
+    local _ = self.sock:send(strpack("<i4i4i4i4i4zi4i4", #query + 29 + #(self.db ..'.$cmd'), self.reqid, 0, STR_TO_OPCODE["OP_QUERY"], 0x04, self.db ..'.$cmd', 0, -1)) and self.sock:send(query)
+    header, response, err = read_reply(self)
+    if not header or response.ok ~= 1 or not response.done then
+      return false, err or response.errmsg or "[MONGO ERROR]: Authorization failed."
+    end
+  end
+  return true
+end
+-- --------- AUTH --------- --
 
 local protocol = { __Version__ = 0.1 }
 
+---comment 发送授权认证
+function protocol.request_auth(self)
+  if type(self.username) == 'string' and type(self.password) == 'string' then
+    local tab, err = send_auth(self)
+    if not tab then
+      return false, err
+    end
+  end
+  self.reqid = self.reqid + 1
+  return true
+end
+
 ---comment 心跳与握手消息
-function protocol.send_handshake(self)
-  local query = assert(bson_encode_order({"isMaster", 1}, {"compress", {}}))
-  if not self.sock:send(strpack("<i4i4i4i4i4zi4i4", #query + 39, 1, 0, STR_TO_OPCODE["OP_QUERY"], 0x04, 'admin.$cmd', 0, -1)) or not self.sock:send(query) then
-    return false, "[MONGO ERROR]: Server closed this session when client send handshake data."
+function protocol.request_handshake(self)
+  local ok = send_handshake(self)
+  if not ok then
+    return false, "[MONGO ERROR]: Server closed this session when client send hello data."
   end
   local header, response, err = read_reply(self)
-  if not header or not response then
-    return false, response or err or "[MONGO ERROR]: Unknown Error."
+  if not header or response.ok ~= 1 then
+    return false, err or response.errmsg or "[MONGO ERROR]: Unknown Error."
   end
   -- var_dump(header);
   -- var_dump(response);
@@ -215,7 +322,7 @@ function protocol.send_handshake(self)
   end
   self.reqid = 2
   self.have_transaction = response.maxWireVersion >= 7 -- 是否支持事务
-  return true
+  return response
 end
 
 ---comment 查询语句
