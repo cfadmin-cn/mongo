@@ -35,15 +35,15 @@ local toint = math.tointeger
 local MAX_INT32 = (1 << 31) - 1
 
 local STR_TO_OPCODE = {
-  OP_REPLY	      = 1,	   -- Reply to a client request. responseTo is set.
+  OP_REPLY        = 1,	   -- Reply to a client request. responseTo is set.
   OP_UPDATE       =	2001,	 -- receivedUpdate	checkAuthForUpdate	update.
   OP_INSERT       =	2002,	 -- receivedInsert	checkAuthForInsert	createIndex/insert.
-  RESERVED	      = 2003,	 -- Formerly used for OP_GET_BY_OID.
+  RESERVED        = 2003,	 -- Formerly used for OP_GET_BY_OID.
   OP_QUERY        =	2004,  --	receivedQuery	checkAuthForQuery	find.
-  OP_GET_MORE	    = 2005,  --	receivedGetMore	checkAuthForGetMore	listCollections/listIndexes/find.
+  OP_GET_MORE     = 2005,  --	receivedGetMore	checkAuthForGetMore	listCollections/listIndexes/find.
   OP_DELETE       =	2006,	 -- receivedDelete	checkAuthForDelete	remove
   OP_KILL_CURSORS =	2007,	 -- receivedKillCursors	checkAuthForKillCursors	killCursors
-  OP_MSG	        = 2013,	 -- Send a message using the format introduced in MongoDB 3.6.
+  OP_MSG          = 2013,	 -- Send a message using the format introduced in MongoDB 3.6.
 }
 
 local OPCODE_TO_STR = {
@@ -259,14 +259,8 @@ local function send_auth(self)
   local salted_password = salt_password(md5(fmt("%s:mongo:%s", self.username, self.password), true), p['s'], toint(p['i']))
   local client_key = hmac_sha1(salted_password, "Client Key")
   local auth_msg = concat({base64decode(nonce):sub(4), payload, without_proof}, ",")
-  local client_sig = hmac_sha1(sha1(client_key), auth_msg)
-  local client_key_sig = xor_str(client_key, client_sig)
-  local client_proof = "p=" .. base64encode(client_key_sig)
-  local client_final = base64encode(without_proof .. ',' .. client_proof)
-	local server_key = hmac_sha1(salted_password, "Server Key")
-	local server_sig = base64encode(hmac_sha1(server_key, auth_msg))
 
-  query = assert(bson_encode_order({"saslContinue", 1}, {"conversationId", response['conversationId']}, {"payload", client_final}))
+  query = assert(bson_encode_order({"saslContinue", 1}, {"conversationId", response['conversationId']}, {"payload", base64encode(without_proof .. ',' .. "p=" .. base64encode(xor_str(client_key, hmac_sha1(sha1(client_key), auth_msg))))}))
   local _ = self.sock:send(strpack("<i4i4i4i4i4zi4i4", #query + 29 + #(self.db ..'.$cmd'), self.reqid, 0, STR_TO_OPCODE["OP_QUERY"], 0x04, self.db ..'.$cmd', 0, -1)) and self.sock:send(query)
   header, response, err = read_reply(self)
   if not header or response.ok ~= 1 then
@@ -277,9 +271,9 @@ local function send_auth(self)
   for key, value in string.gmatch(response["payload"], "([^,=]+)=([^,]+)") do
     p[key] = value
   end
-	if p['v'] ~= server_sig then
-		return false, "Server returned an invalid signature."
-	end
+  if p['v'] ~= base64encode(hmac_sha1(hmac_sha1(salted_password, "Server Key"), auth_msg)) then
+    return false, "Server returned an invalid signature."
+  end
   if not response.done then
     query = assert(bson_encode_order({"saslContinue", 1}, {"conversationId", response['conversationId']}, {"payload", ""}))
     local _ = self.sock:send(strpack("<i4i4i4i4i4zi4i4", #query + 29 + #(self.db ..'.$cmd'), self.reqid, 0, STR_TO_OPCODE["OP_QUERY"], 0x04, self.db ..'.$cmd', 0, -1)) and self.sock:send(query)
