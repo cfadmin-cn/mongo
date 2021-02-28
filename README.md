@@ -4,15 +4,40 @@
 
 ## 特性
 
-  * 支持基础的`CURD API`;
-
-  * 内置高效、类型丰富的`BSON`解析器;
+  * 完善的`CURD API`支持;
   
-  * 使用最新版的交互协议(`OP_MSG`);
+  * 使用最新版的协议(`OP_MSG`)交互更加高效;
 
-  * 类似`mongo shell`的语法减少了学习成本, 简单易用的`API`可以让大家更容易上手使用;
+  * 内置社区内最好的`BSON`解析器, 使用方便、简单、直观;
 
-  * 类型支持(`string`/`double`/`table`/`array`/`null`/`datetime`/`timestamp`/`objectid`/`int32`/`int64`/`minkey`/`maxkey`/`uuid`/`md5`/`binary`/`regex`)(参考下面的示例代码);
+  * 更简洁的语法降低学习成本, 核心协议实现仅用`1500`多行代码完成;
+
+## 类型
+
+  * 字符串(`String`)
+
+  * 二进制类型(`Binary`/`MD5`/`uuid`)
+
+  * 正则表达式(`Regex`)
+
+  * 表(`table`/`array`)
+
+  * 空(`null`)
+
+  * 未定义(`undefined`)
+
+  * 时间(`datetime`/`timestamp`)
+
+  * 对象ID(`objectid`)
+
+  * 整型(`int32`/`int64`)
+
+  * 浮点型(`Double`)
+
+  * 布尔(`true`/`false`)
+
+  * 大小值(`MaxKey`/`MinKey`)
+
 
 ## 效率
 
@@ -65,7 +90,7 @@
 
 ### 3. 查询语句
 
-  `function mongo:find(database, collect, filter, option) return info | nil, string end`
+  `function mongo:find(database, collect, filter, option) return info, id | nil, string end`
 
   * `database` - `string`类型, MongoDB的数据库名称;
 
@@ -73,9 +98,9 @@
 
   * `filter`   - `table`类型, 一个符合语法规范的查询条件;
 
-  * `option`   - `table`类型, 可选参数(`option.limit`/`option.skip`);
+  * `option`   - `table`类型, 可选参数(`option.sort`/`option.limit`/`option.skip`/`option.cursor`);
 
-  成功返回`table`类型的info, 失败返回`false`与失败信息`string`.
+  成功返回`table`类型的info与`cursor id`, 失败返回`false`与失败信息`string`.
 
 ### 3. 插入语句
 
@@ -248,7 +273,17 @@ require "logging":DEBUG("结束")
 [2021-02-28 13:26:35,961] [@script/main.lua:135] [DEBUG] : "结束"
 ```
 
-## 注意
+## 提示
+
+  * 如果对`bson`库的性能有要求, 请务必编译`lbson.so`库文件出来.
+
+  * 当某字段需要插入`空数组`的时候, 可以使用内置的`bson.empty_array()`方法进行构造.
+
+  * 查询分页可以使用两种方式完成: 1、`limit`+`skip`;  2、`cursor_id`+`limit`;
+
+  * 第一种的原理同关系型数据库的`limit`/`offset`; 第二种为`游标分页`依赖前置条件导向(适用环境有限);
+
+  * `bson.datetime`/`bson.timestamp`/`bson.objectid`等方法需要大家小心使用(如果有疑问可以咨询作者).
 
   * 授权仅支持用户名/密码授权(SCRAM-SHA-1);
 
