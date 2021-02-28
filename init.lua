@@ -59,6 +59,7 @@ function mongo:connect()
   if not ok then
     return false, err
   end
+  self.reqid = self.reqid + 1
   self.connected = true
   return true
 end

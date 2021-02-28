@@ -32,6 +32,8 @@ local concat = table.concat
 
 local toint = math.tointeger
 
+local MAX_INT32 = (1 << 31) - 1
+
 local STR_TO_OPCODE = {
   OP_REPLY	      = 1,	   -- Reply to a client request. responseTo is set.
   OP_UPDATE       =	2001,	 -- receivedUpdate	checkAuthForUpdate	update.
@@ -162,7 +164,7 @@ local function read_msg_body(self)
   if not document then
     return false, "[MONGO ERROR]: Server closed this session when client read reply."
   end
-  self.reqid = self.reqid + 1
+  self.reqid = self.reqid % MAX_INT32 + 1
   return bson_decode(document)
 end
 
@@ -229,7 +231,7 @@ end
 
 -- --------- AUTH --------- --
 local function send_auth(self)
-  local nonce, non = getn_nonce_payload(self.username)
+  local nonce, _ --[[ non ]] = getn_nonce_payload(self.username)
   local query = assert(bson_encode_order({"saslStart", 1}, {"autoAuthorize", 1}, {"mechanism", self.auth_mode}, {"payload", nonce}))
   local _ = self.sock:send(strpack("<i4i4i4i4i4zi4i4", #query + 29 + #(self.db ..'.$cmd'), self.reqid, 0, STR_TO_OPCODE["OP_QUERY"], 0x04, self.db ..'.$cmd', 0, -1)) and self.sock:send(query)
   local header, response, err = read_reply(self)
@@ -250,9 +252,9 @@ local function send_auth(self)
     p[key] = value
   end
   -- 检查启动协议是否匹配.
-  if not find(p['r'] or "", '^' .. non) then
-    return false, "Invalid nonce when server return data."
-  end
+  -- if not find(p['r'] or "", '^' .. non) then
+  --   return false, "Invalid nonce when server return data."
+  -- end
   local without_proof = "c=biws,r=" .. p['r']
   local salted_password = salt_password(md5(fmt("%s:mongo:%s", self.username, self.password), true), p['s'], toint(p['i']))
   local client_key = hmac_sha1(salted_password, "Client Key")
@@ -300,7 +302,6 @@ function protocol.request_auth(self)
       return false, err
     end
   end
-  self.reqid = self.reqid + 1
   return true
 end
 
@@ -320,7 +321,6 @@ function protocol.request_handshake(self)
   if response.maxWireVersion < 6 then
     return false, "[MONGO ERROR]: versions below 3.6 are not supported."
   end
-  self.reqid = 2
   self.have_transaction = response.maxWireVersion >= 7 -- 是否支持事务
   return response
 end
