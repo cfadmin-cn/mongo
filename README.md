@@ -4,9 +4,15 @@
 
 ## 特性
 
+  * 支持基础的`CURD API`;
+
+  * 内置高效、类型丰富的`BSON`解析器;
+  
+  * 使用最新版的交互协议(`OP_MSG`);
+
   * 类似`mongo shell`的语法减少了学习成本, 简单易用的`API`可以让大家更容易上手使用;
 
-  * 丰富的类型支持(`string`/`double`/`table`/`array`/`null`/`datetime`/`timestamp`/`objectid`/`int32`/`int64`/`minkey`/`maxkey`/`uuid`/`md5`/`binary`/`regex`);
+  * 类型支持(`string`/`double`/`table`/`array`/`null`/`datetime`/`timestamp`/`objectid`/`int32`/`int64`/`minkey`/`maxkey`/`uuid`/`md5`/`binary`/`regex`)(参考下面的示例代码);
 
 ## 效率
 
@@ -40,11 +46,15 @@
 
   * opt.SSL - `boolean`类型, 是否需要使用`SSL`协议握手;
 
-  * opt.auth_mode - `string`类型, 授权验证模式;
+  * opt.auth_mode - `string`类型, 授权验证模式(仅支持:`SCRAM-SHA-1`);
+
+  * opt.db - `string`类型, 授权数据库名称(默认是:"admin");
 
   * opt.username - `string`类型, 授权用户账号;
 
   * opt.password - `string`类型, 授权用户密码;
+
+  在您填写了用户名称与密码之后, 将会在连接的时候自动检查是否需要授权认证
 
 
 ### 2. 连接服务器
@@ -123,15 +133,22 @@ require"utils"
 local mongo = require "mongo"
 local bson = require "mongo.bson"
 
-local m = mongo:new {}
-
-print(m:connect())
+local m = mongo:new {
+  db = "mydb",        -- 授权DB名称
+  username = "admin", -- 授权用户名称
+  password = "admin", -- 授权用户密码
+}
 
 require "logging":DEBUG("开始")
 
+local ok, err = m:connect()
+if not ok then
+  return print(false, err)
+end
+
 local database, collect = "mydb", "table"
 
-local tab, err
+local tab
 
 tab, err = m:insert(database, collect, {
   { nickname = "車先生", age = 30, ts = bson.timestamp(), nullptr = bson.null(), regex = bson.regex("/先生/i"), uuid = bson.uuid() },
@@ -171,69 +188,73 @@ m:close()
 require "logging":DEBUG("结束")
 ```
 ```bash
-Candy@CandyMi MSYS ~/stt_trade
-$ ./cfadmin.exe
-true
-[2021-02-25 21:06:38,161] [@script/main.lua:93] [DEBUG] : "开始"
+[candy@MacBookPro:~/Documents/cfadmin] $ ./cfadmin
+[2021-02-28 13:26:35,947] [@script/main.lua:94] [DEBUG] : "开始"
 {
-      ["insertedCount"] = 2,
       ["acknowledged"] = true,
+      ["insertedCount"] = 2,
 }
 {
       [1] = {
-            ["uuid"] = "236c8046-d3d1-443f-8ddd-b8279a08d8d0",
-            ["_id"] = "6038ba1e49672591aca5a638",
-            ["nullptr"] = userdata: 0x0,
-            ["age"] = 30,
-            ["regex"] = "/先生/",
-            ["ts"] = 1614330398161,
+            ["_id"] = "603b298bb7bacd21ef3c59d9",
+            ["regex"] = "/先生/i",
             ["nickname"] = "車先生",
+            ["age"] = 30,
+            ["nullptr"] = userdata: 0x0,
+            ["ts"] = 1614489995947,
+            ["uuid"] = "ba1c1b0c-191b-4480-9d68-cb4c5755cd5d",
       },
       [2] = {
-            ["_id"] = "6038ba1e49672591aca5a639",
-            ["nullptr"] = userdata: 0x0,
-            ["age"] = 26,
-            ["regex"] = "/太太/",
-            ["ts"] = 1614330398161,
-            ["guid"] = "4a538113-9cae-b63e-6038-ba1e064c7fa5",
+            ["_id"] = "603b298bb7bacd21ef3c59da",
+            ["regex"] = "/太太/i",
             ["nickname"] = "車太太",
+            ["guid"] = "f47bf20c-7a7f-4c61-603b-298b2507b289",
+            ["age"] = 26,
+            ["nullptr"] = userdata: 0x0,
+            ["ts"] = 1614489995947,
       },
 }
 {
       ["matchedCount"] = 1,
-      ["acknowledged"] = true,
       ["modifiedCount"] = 1,
+      ["acknowledged"] = true,
 }
 {
       [1] = {
-            ["uuid"] = "236c8046-d3d1-443f-8ddd-b8279a08d8d0",
-            ["_id"] = "6038ba1e49672591aca5a638",
-            ["nullptr"] = userdata: 0x0,
-            ["age"] = 30,
-            ["regex"] = "/先生/",
-            ["ts"] = 1614330398161,
+            ["_id"] = "603b298bb7bacd21ef3c59d9",
+            ["regex"] = "/先生/i",
             ["nickname"] = "車先生",
+            ["age"] = 30,
+            ["nullptr"] = userdata: 0x0,
+            ["ts"] = 1614489995947,
+            ["uuid"] = "ba1c1b0c-191b-4480-9d68-cb4c5755cd5d",
       },
       [2] = {
-            ["_id"] = "6038ba1e49672591aca5a639",
-            ["nullptr"] = userdata: 0x0,
-            ["age"] = 26,
-            ["regex"] = "/太太/",
-            ["ts"] = 1614330398161,
-            ["guid"] = "4a538113-9cae-b63e-6038-ba1e064c7fa5",
+            ["_id"] = "603b298bb7bacd21ef3c59da",
+            ["regex"] = "/太太/i",
             ["nickname"] = "車先生",
+            ["guid"] = "f47bf20c-7a7f-4c61-603b-298b2507b289",
+            ["age"] = 26,
+            ["nullptr"] = userdata: 0x0,
+            ["ts"] = 1614489995947,
       },
 }
 {
-      ["deletedCount"] = 2,
       ["acknowledged"] = true,
+      ["deletedCount"] = 2,
 }
-[2021-02-25 21:06:38,188] [@script/main.lua:132] [DEBUG] : "结束"
+[2021-02-28 13:26:35,961] [@script/main.lua:135] [DEBUG] : "结束"
 ```
 
 ## 注意
 
-  * 本驱动仅支持MongoDB 3.6及以上版本.
+  * 授权仅支持用户名/密码授权(SCRAM-SHA-1);
+
+  * 本驱动仅支持MongoDB 3.6及以上版本;
+
+## 建议
+
+  如果您有更好的需求与建议请留言到ISSUE, 作者在收到后会尽快回复并与您进行沟通.
 
 ## LICENSE
 
