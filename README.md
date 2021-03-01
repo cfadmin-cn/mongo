@@ -65,21 +65,21 @@
 
   `function mongo:new(opt) return mongo end`
 
-  * opt.host - `string`类型, 服务器域名(默认是:"localhost");
+  * `opt.host` - `string`类型, 服务器域名(默认是:"localhost");
 
-  * opt.port - `integer`类型, 服务器端口(默认是:27017");
+  * `opt.port` - `integer`类型, 服务器端口(默认是:27017");
 
-  * opt.SSL - `boolean`类型, 是否需要使用`SSL`协议握手;
+  * `opt.SSL` - `boolean`类型, 是否需要使用`SSL`协议握手;
 
-  * opt.auth_mode - `string`类型, 授权验证模式(仅支持:`SCRAM-SHA-1`);
+  * `opt.auth_mode` - `string`类型, 授权验证模式(仅支持:`SCRAM-SHA-1`);
 
-  * opt.db - `string`类型, 授权数据库名称(默认是:"admin");
+  * `opt.db` - `string`类型, 授权数据库名称(默认是:"admin");
 
-  * opt.username - `string`类型, 授权用户账号;
+  * `opt.username` - `string`类型, 授权用户账号;
 
-  * opt.password - `string`类型, 授权用户密码;
+  * `opt.password` - `string`类型, 授权用户密码;
 
-  在您填写了用户名称与密码之后, 将会在连接的时候自动检查是否需要授权认证
+  创建`MongoDB`对象; 开发者填写了用户名称与密码之后, 将会在连接服务器的时候自动检查是否需要授权认证.
 
 
 ### 2. 连接服务器
