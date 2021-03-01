@@ -79,12 +79,15 @@
 
   * `opt.password` - `string`类型, 授权用户密码;
 
-  创建`MongoDB`对象; 开发者填写了用户名称与密码之后, 将会在连接服务器的时候自动检查是否需要授权认证.
-
+  调用此构造方法将会创建`MongoDB`对象.
 
 ### 2. 连接服务器
 
   `function mongo:connect() return true | nil, string end`
+
+  开发者在创建`MongoDB`对象的时候如果填写了`username`与`password`, 调用此方法的时候会自动完成授权认证.
+
+  授权可能不完善(不可读、写), 所以连接成功也并不一定会授权成功, 授权成功也不一定可以执行`CRUD`成功;
 
   成功返回`true`, 失败返回`false`与失败信息`string`,
 
@@ -100,7 +103,17 @@
 
   * `option`   - `table`类型, 可选参数(`option.sort`/`option.limit`/`option.skip`/`option.cursor`);
 
-  成功返回`table`类型的info与`cursor id`, 失败返回`false`与失败信息`string`.
+  `filter`可以用作查询的过滤条件, 例如: `{ nickname = "李小龙" }`或一个空表; (但是不能为空数组);
+
+  `option`参数有2组4个参数, 其组合作用为`游标分页`与`跳跃分页`:
+
+    * 跳跃分页(`limit`与`skip`): 操作方式类似`MySQL`、`Oracle`等数据库的`LIMIT`与`OFFSET`;
+
+    * 游标分页(`cursor`与`limit`): 每次迭代(包括第一次)查询返回游标(上下文), 每次返回的游标ID只能使用一次;
+
+  `sort`指定了排序的方式, 表达式为: `{sort = {age =  1}}` 或者 `{sort = {age =  -1}}`, (1)升序、(-1)降序;
+
+  成功返回`table`类型的`info`与`integer`类型的`cursor id`, 失败返回`false`与失败信息`string`.
 
 ### 3. 插入语句
 
@@ -114,7 +127,11 @@
 
   * `option`   - `table`类型, 可选参数(`option.ordered`);
 
-  成功返回`table`类型的info, 失败返回`false`与失败信息`string`.
+  `documents`为文档数组, 即使只插入一条数据也应该使用这样的数组表达式: `{ {nickname = "名称", age = 18 }}`;
+
+  `option.ordered`默认为`false`(如果插入多条的时候出错, 则忽略并继续处理后续数据), 设置为`true`则会不再处理后续数据;
+
+  成功返回`table`类型的`info`, 失败返回`false`与失败信息`string`.
 
 ### 4. 更新语句
 
@@ -130,7 +147,21 @@
 
   * `option`   - `table`类型, 可选参数(`option.upsert`/`option.multi`);
 
-  成功返回`table`类型的info, 失败返回`false`与失败信息`string`.
+  `filter`可以用作查询的过滤条件, 例如: `{ nickname = "李小龙" }`或一个空表; (但是不能为空数组);
+
+  `set`参数为一个`文档`或者`文档更新语法`, 具体使用方式类似`mongo shell语法`:
+
+    * `mongo:update('db', 'table', { name = "123" }, { ['$set'] = { name = "234" } } )`
+
+    * `mongo:update('db', 'table', { name = "123" }, { ['$inc'] = { age = 1 } } )`
+
+    * `mongo:update('db', 'table', { name = "123" }, { ['$unset'] = { age = 1} } )`
+
+  `option.upsert`默认为`false`; 如果设置为`true`, 则表示不存在`set`指定的记录则插入;
+
+  `option.multi`默认为`false`(只更新找到的第一条记录), 如果设置为`true`, 则表示更新所有记录;
+
+  成功返回`table`类型的`info`, 失败返回`false`与失败信息`string`.
 
 ### 5. 删除语句
 
@@ -142,9 +173,13 @@
 
   * `filter`  - `table`类型, 查询过滤的条件;
 
-  * `option`   - `table`类型, 可选参数(`option.limit`);
+  * `option`   - `table`类型, 可选参数(`option.one`);
 
-  成功返回`table`类型的info, 失败返回`false`与失败信息`string`.
+  `filter`可以用作查询的过滤条件, 例如: `{ nickname = "李小龙" }`或一个空表; (但是不能为空数组);
+
+  `option.one`属性指定为`1`表示只删除1条数据, 其它值与默认情况下都表示删除所有匹配项;
+
+  成功返回`table`类型的`info`, 失败返回`false`与失败信息`string`.
 
 ### 6. 断开连接
 
@@ -279,11 +314,7 @@ require "logging":DEBUG("结束")
 
   * 当某字段需要插入`空数组`的时候, 可以使用内置的`bson.empty_array()`方法进行构造.
 
-  * 查询分页可以使用两种方式完成: 1、`limit`+`skip`;  2、`cursor_id`+`limit`;
-
-  * 第一种的原理同关系型数据库的`limit`/`offset`; 第二种为`游标分页`依赖前置条件导向(适用环境有限);
-
-  * `bson.datetime`/`bson.timestamp`/`bson.objectid`等方法需要大家小心使用(如果有疑问可以咨询作者).
+  * 一些特殊数据类型(`bson.objectid`)需要`bson`的构造方法来编码传递, 如果有疑问可以咨询作者.
 
   * 授权仅支持用户名/密码授权(SCRAM-SHA-1);
 
@@ -291,7 +322,9 @@ require "logging":DEBUG("结束")
 
 ## 建议
 
-  如果您有更好的需求与建议请留言到ISSUE, 作者在收到后会尽快回复并与您进行沟通.
+  * 使用`VS CODE`安装`lua-language-server`插件后使用会自动得到上述代码不全与编码提示;
+
+  * 如果您有更好的需求与建议请留言到ISSUE, 作者在收到后会尽快回复并与您进行沟通;
 
 ## LICENSE
 
