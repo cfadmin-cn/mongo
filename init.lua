@@ -65,7 +65,12 @@ function mongo:connect()
   return true
 end
 
----comment 查询
+---comment 查询数据
+---@param database string       @需要查询的数据库名称
+---@param collect string        @需要查询的集合名称
+---@param filter table          @需要执行查询的条件
+---@param option table          @需要查询的可选参数(`cursor`/`limit`/`skip`/`sort`)
+---@return table, integer | nil, string  @成功返回结果数据与游标`id`, 失败返回`false`与出错信息,
 function mongo:find(database, collect, filter, option)
   assert(type(database) == 'string' and database ~= '' and type(collect) == 'string' and collect ~= '', "Invalid find collect or database.")
   local tab, err = request_query(self, database, collect, filter, option)
@@ -75,7 +80,11 @@ function mongo:find(database, collect, filter, option)
   return tab.cursor.firstBatch or tab.cursor.nextBatch, tab.cursor.id
 end
 
----comment 新增
+---comment 新增数据
+---@param database string       @需要插入的数据库名称
+---@param collect string        @需要插入的集合名称
+---@param documents table       @需要插入的文档数组
+---@param option table          @需要插入的文档可选参数(`ordered`)
 function mongo:insert(database, collect, documents, option)
   assert(type(database) == 'string' and database ~= '' and type(collect) == 'string' and collect ~= '', "Invalid insert collect or database.")
   assert(type(documents) == 'table' and #documents > 0 and type(documents[1]) == "table", "Invalid insert documents.")
@@ -86,9 +95,15 @@ function mongo:insert(database, collect, documents, option)
   return { acknowledged = (tab['ok'] == 1 or tab['ok'] == true) and true or false, insertedCount = toint(tab['n']) }
 end
 
----comment 修改
+---comment 修改数据
+---@param database string       @需要修改的数据库名称
+---@param collect string        @需要修改的集合名称
+---@param filter table          @需要更新的过滤条件
+---@param update table          @需要更新的文档结果
+---@param option table          @需要更新的可选参数(`upsert`/`multi`)
 function mongo:update(database, collect, filter, update, option)
   assert(type(database) == 'string' and database ~= '' and type(collect) == 'string' and collect ~= '', "Invalid update collect or database.")
+  assert(type(filter) == 'table', "Invalid update filter.")
   local tab, err = request_update(self, database, collect, filter, update, option)
   if not tab or tab.errmsg then
     return false, err or fmt('{"errcode":%d,"errmsg":"%s"}', tab.code, tab.errmsg)
@@ -96,11 +111,15 @@ function mongo:update(database, collect, filter, update, option)
   return{ acknowledged = (tab['ok'] == 1 or tab['ok'] == true) and true or false, matchedCount = toint(tab['n']), modifiedCount = toint(tab['nModified']) }
 end
 
----comment 删除
-function mongo:delete(database, collect, array, option)
+---comment 删除数据
+---@param database string       @需要删除的数据库名称
+---@param collect string        @需要删除的集合名称
+---@param filter table          @需要删除的过滤条件
+---@param option table          @需要删除的可选参数(`one`)
+function mongo:delete(database, collect, filter, option)
   assert(type(database) == 'string' and database ~= '' and type(collect) == 'string' and collect ~= '', "Invalid delete collect or database.")
-  assert(type(array) == 'table', "Invalid delete filter.")
-  local tab, err = request_delete(self, database, collect, array, option)
+  assert(type(filter) == 'table', "Invalid delete filter.")
+  local tab, err = request_delete(self, database, collect, filter, option)
   if not tab or tab.errmsg then
     return false, err or fmt('{"errcode":%d,"errmsg":"%s"}', tab.code, tab.errmsg)
   end
