@@ -1,9 +1,11 @@
 local protocol = require "mongo.protocol"
 -- 协议交互
+local request_count = protocol.request_count
 local request_query = protocol.request_query
 local request_update = protocol.request_update
 local request_insert = protocol.request_insert
 local request_delete = protocol.request_delete
+local request_aggregate = protocol.request_aggregate
 -- 握手
 local request_auth = protocol.request_auth
 local request_handshake = protocol.request_handshake
@@ -124,6 +126,36 @@ function mongo:delete(database, collect, filter, option)
     return false, err or fmt('{"errcode":%d,"errmsg":"%s"}', tab.code, tab.errmsg)
   end
   return { acknowledged = (tab['ok'] == 1 or tab['ok'] == true) and true or false, deletedCount = toint(tab['n']),  }
+end
+
+---comment COUNT - 聚合函数
+---@param database string       @需要查询的数据库名称
+---@param collect string        @需要查询的集合名称
+---@param filter table          @需要执行查询的条件
+---@param option table          @需要查询的可选参数
+---@return table, integer | nil, string  @成功返回结果数据与游标`id`, 失败返回`false`与出错信息,
+function mongo:count(database, collect, filter, option)
+  assert(type(database) == 'string' and database ~= '' and type(collect) == 'string' and collect ~= '', "Invalid find collect or database.")
+  local tab, err = request_count(self, database, collect, filter, option)
+  if not tab or tab.errmsg then
+    return false, err or fmt('{"errcode":%d,"errmsg":"%s"}', tab.code, tab.errmsg)
+  end
+  return { acknowledged = true , count = tab.cursor.firstBatch[1].n }, tab.cursor.id
+end
+
+---comment AGGREGATE - 聚合函数
+---@param database string       @需要查询的数据库名称
+---@param collect string        @需要查询的集合名称
+---@param filter table          @需要执行查询的条件
+---@param option table          @需要查询的可选参数
+---@return table, integer | nil, string  @成功返回结果数据与游标`id`, 失败返回`false`与出错信息,
+function mongo:aggregate(database, collect, filter, option)
+  assert(type(database) == 'string' and database ~= '' and type(collect) == 'string' and collect ~= '', "Invalid find collect or database.")
+  local tab, err = request_aggregate(self, database, collect, filter, option)
+  if not tab or tab.errmsg then
+    return false, err or fmt('{"errcode":%d,"errmsg":"%s"}', tab.code, tab.errmsg)
+  end
+  return tab.cursor.firstBatch or tab.cursor.nextBatch, tab.cursor.id
 end
 
 ---comment 关闭连接

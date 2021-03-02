@@ -20,11 +20,12 @@ local base64encode = crypt.base64encode
 local sys = require "sys"
 local new_tab = sys.new_tab
 
+local next = next
 local type = type
 local pcall = pcall
 local assert = assert
 
-local find = string.find
+-- local find = string.find
 local fmt = string.format
 local strpack = string.pack
 local strunpack = string.unpack
@@ -180,14 +181,21 @@ end
 -- --------- QUERY --------- --
 local function send_query(self, db, table, filter, option)
   local query = {{"find", table}, {"filter", filter}, {"limit", type(option) == 'table' and toint(option.limit) or 0}, {"skip", type(option) == 'table' and toint(option.skip) or 0}, {"$db", db}}
-  if type(option) == 'table' and toint(option.cursor) then
+  if type(option) == 'table' and toint(option.cursor) and toint(option.cursor) > 4294967296 then
     query = {{"getMore", toint(option.cursor)}, {"collection", table}, {"$db", db}}
-    if toint(option.limit) then
-      query[#query+1] = {"batchSize", type(option) == 'table' and toint(option.limit) or 0}
+    if toint(option.size) then
+      query[#query+1] = {"batchSize", type(option) == 'table' and toint(option.size) or 0}
     end
   else
-    if type(option) == 'table' and type(option.sort) == 'table' then
-      query[#query+1] = {"sort", option.sort}
+    if type(option) == 'table' then
+      -- 排序条件
+      if type(option.sort) == 'table' then
+        query[#query+1] = {"sort", option.sort}
+      end
+      -- 如果没有指定cursor但是指定了`size`, 数据如果超出`size`就会返回游标ID.
+      if toint(option.size) and toint(option.size) > 0 then
+        query[#query+1] = {"batchSize", type(option) == 'table' and toint(option.size) or 0}
+      end
     end
   end
   local sections = bson_encode_order(unpack(query))
@@ -241,6 +249,24 @@ local function read_delete(self)
   return read_msg_body(self)
 end
 -- --------- DELETE --------- --
+
+-- --------- AGGREGATE --------- --
+local function send_aggregate(self, db, table, pipeline, option)
+  local query = {{"aggregate", table}, {"cursor", bson.empty_table()}, {"pipeline", pipeline}, {"$db", db}}
+  if type(option) == 'table' and toint(option.cursor) and toint(option.cursor) > 4294967296 then
+    query = {{"getMore", toint(option.cursor)}, {"collection", table}, {"$db", db}}
+    if toint(option.size) and toint(option.size) > 0 then
+      query[#query+1] = {"batchSize", toint(option.size)}
+    end
+  end
+  local sections = bson_encode_order(unpack(query))
+  return self.sock:send(strpack("<i4i4i4i4i4B", #sections + 21, self.reqid, 0, STR_TO_OPCODE["OP_MSG"], 0, 0)) and self.sock:send(sections)
+end
+
+local function read_aggregate(self)
+  return read_msg_body(self)
+end
+-- --------- AGGREGATE --------- --
 
 -- --------- HANDSHAKE --------- --
 local function send_handshake(self)
@@ -323,7 +349,7 @@ end
 function protocol.request_handshake(self)
   local ok = send_handshake(self)
   if not ok then
-    return false, "[MONGO ERROR]: Server closed this session when client send hello data."
+    return false, "[MONGO ERROR]: Server closed this session when client send hello request."
   end
   local header, response, err = read_reply(self)
   if not header or response.ok ~= 1 or response.maxWireVersion < 6 then
@@ -338,7 +364,7 @@ end
 ---comment 查询语句
 function protocol.request_query(self, db, table, filter, option)
   if not send_query(self, db, table, filter, option) then
-    return false, "[MONGO ERROR]: Server closed this session when client send query data."
+    return false, "[MONGO ERROR]: Server closed this session when client send query request."
   end
   return read_query(self)
 end
@@ -346,7 +372,7 @@ end
 ---comment 插入语句
 function protocol.request_insert(self, db, table, array, option)
   if not send_insert(self, db, table, array, option) then
-    return false, "[MONGO ERROR]: Server closed this session when client send insert data."
+    return false, "[MONGO ERROR]: Server closed this session when client send insert request."
   end
   return read_insert(self)
 end
@@ -354,7 +380,7 @@ end
 ---comment 更新语句
 function protocol.request_update(self, db, table, filter, update, option)
   if not send_update(self, db, table, filter, update, option) then
-    return false, "[MONGO ERROR]: Server closed this session when client send delete data."
+    return false, "[MONGO ERROR]: Server closed this session when client send update request."
   end
   return read_update(self)
 end
@@ -362,9 +388,30 @@ end
 ---comment 删除语句
 function protocol.request_delete(self, db, table, array, option)
   if not send_delete(self, db, table, array, option) then
-    return false, "[MONGO ERROR]: Server closed this session when client send delete data."
+    return false, "[MONGO ERROR]: Server closed this session when client send delete request."
   end
   return read_delete(self)
+end
+
+---comment 统计查询
+function protocol.request_count(self, db, table, filter, option)
+  if not send_aggregate(self, db, table, { { ["$match"] = type(filter) == 'table' and filter or {} }, {["$group"] = { _id = bson.null(), n = {['$sum']  = 1 } }} }, option) then
+    return false, "[MONGO ERROR]: Server closed this session when client send count request."
+  end
+  return read_aggregate(self)
+end
+
+---comment 聚合查询
+function protocol.request_aggregate(self, db, table, filter, option)
+  if type(filter) ~= 'table' or not next(filter) then
+    filter = bson.empty_array()
+  elseif #filter < 1 then
+    filter = { filter }
+  end
+  if not send_aggregate(self, db, table, filter, option) then
+    return false, "[MONGO ERROR]: Server closed this session when client send aggregate request."
+  end
+  return read_aggregate(self)
 end
 
 return protocol
