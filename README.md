@@ -38,6 +38,7 @@
 
   * 大小值(`MaxKey`/`MinKey`)
 
+  * 代码(java script code)
 
 ## 效率
 
