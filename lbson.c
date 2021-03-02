@@ -237,6 +237,12 @@ static int bson_decode_array(lua_State *L, struct BSON_T *b) {
         read_cstring(L, b, &key_len);
         bson_decode_table(L, b);
         break;
+      case BSON_JSCODE2:
+        read_cstring(L, b, &key_len);
+        value_len = read_int32(L, b);
+        value = (const char *)read_cstring(L, b, &value_len);
+        lua_pushlstring(L, value, value_len);
+        break;
       case '\x00':
         return 1;
       default:
@@ -346,6 +352,13 @@ static int bson_decode_table(lua_State *L, struct BSON_T *b) {
         key = (const char *)read_cstring(L, b, &key_len);
         lua_pushlstring(L, key, key_len);
         bson_decode_table(L, b);
+        break;
+      case BSON_JSCODE2:
+        key = (const char *)read_cstring(L, b, &key_len);
+        lua_pushlstring(L, key, key_len);
+        value_len = read_int32(L, b);
+        value = (const char *)read_cstring(L, b, &value_len);
+        lua_pushlstring(L, value, value_len);
         break;
       case '\x00':
         return 1;
