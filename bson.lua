@@ -334,21 +334,6 @@ local function advance_encode(buffers, index, func, mode)
   return
 end
 
-normal_encode = function (buffers, index, value, mode)
-  if mode == BSON_ARRAY then
-    index = index - 1
-  end
-  local k, _ = next(value)
-  if type(k) == "number" then
-    buffers[rawlen(buffers) + 1] = strpack("<Bz", BSON_ARRAY, index)
-    buffers[rawlen(buffers) + 1] = array_encode(value)
-  else
-    buffers[rawlen(buffers) + 1] = strpack("<Bz", BSON_TABLE, index)
-    buffers[rawlen(buffers) + 1] = table_encode(value)
-  end
-  return
-end
-
 local tab_all = new_tab(3, 0)
 
 local function concat_all(buffers)
@@ -383,7 +368,14 @@ array_encode = function (tab)
     elseif type(value) == 'boolean' then
       buffers[rawlen(buffers) + 1] = strpack("<BzB", BSON_BOOLEAN, index - 1, value and 1 or 0)
     elseif type(value) == 'table' then
-      normal_encode(buffers, index - 1, value, mode)
+      local k, _ = next(value)
+      if type(k) == "number" then
+        buffers[rawlen(buffers) + 1] = strpack("<Bz", BSON_ARRAY, index - 1)
+        buffers[rawlen(buffers) + 1] = array_encode(value)
+      else
+        buffers[rawlen(buffers) + 1] = strpack("<Bz", BSON_TABLE, index - 1)
+        buffers[rawlen(buffers) + 1] = table_encode(value)
+      end
     end
     index, value = next(tab, index)
     if not index then
@@ -423,7 +415,14 @@ table_encode = function (tab)
     elseif type(value) == 'boolean' then
       buffers[rawlen(buffers) + 1] = strpack("<BzB", BSON_BOOLEAN, key, value and 1 or 0)
     elseif type(value) == 'table' then
-      normal_encode(buffers, key, value, mode)
+      local k, _ = next(value)
+      if type(k) == "number" then
+        buffers[rawlen(buffers) + 1] = strpack("<Bz", BSON_ARRAY, key)
+        buffers[rawlen(buffers) + 1] = array_encode(value)
+      else
+        buffers[rawlen(buffers) + 1] = strpack("<Bz", BSON_TABLE, key)
+        buffers[rawlen(buffers) + 1] = table_encode(value)
+      end
     end
     key, value = next(tab, key)
     if not key then
@@ -455,7 +454,14 @@ local function bson_encode_order(...)
     elseif type(value) == 'boolean' then
       buffers[rawlen(buffers) + 1] = strpack("<BzB", BSON_BOOLEAN, key, value and 1 or 0)
     elseif type(value) == 'table' then
-      normal_encode(buffers, key, value, BSON_TABLE)
+      local k, _ = next(value)
+      if type(k) == "number" then
+        buffers[rawlen(buffers) + 1] = strpack("<Bz", BSON_ARRAY, key)
+        buffers[rawlen(buffers) + 1] = array_encode(value)
+      else
+        buffers[rawlen(buffers) + 1] = strpack("<Bz", BSON_TABLE, key)
+        buffers[rawlen(buffers) + 1] = table_encode(value)
+      end
     end
   end
   return concat_all(buffers)
