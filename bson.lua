@@ -121,8 +121,10 @@ CMD[BSON_JSCODE1] = function (_, _)
   return assert(nil, "Unsupported field type: [JavaScript code].")
 end
 
-CMD[BSON_JSCODE2] = function (_, _)
-  return assert(nil, "Unsupported field type: [JavaScript code w/ scope].")
+CMD[BSON_JSCODE2] = function (str, pos)
+  local _, code
+  _, code, pos = strunpack("i4z", str, pos)
+  return code, pos
 end
 
 CMD[BSON_UNDEFINE] = function (_, pos)
@@ -330,6 +332,9 @@ local function advance_encode(buffers, index, func, mode)
     buffers[rawlen(buffers) + 1] = empty_table
   elseif typ == BSON_UNDEFINE then
     buffers[rawlen(buffers) + 1] = strpack("<Bz", typ, index)
+  elseif typ == BSON_JSCODE2 then
+    buffers[rawlen(buffers) + 1] = strpack("<Bz", typ, index)
+    buffers[rawlen(buffers) + 1] = strpack("<i4z", #v + 1, v)
   end
   return
 end
@@ -476,11 +481,19 @@ function bson.null()
   return null
 end
 
----comment 特殊的数据类型
+---comment 存储undefined数据类型
 ---@return function    @该类型的构造方法
 function bson.undefined()
   return function ()
     return null, BSON_UNDEFINE
+  end
+end
+
+---comment 存储合法的java script code
+---@param jscode any
+function bson.dump(jscode)
+  return function ()
+    return jscode, BSON_JSCODE2
   end
 end
 
