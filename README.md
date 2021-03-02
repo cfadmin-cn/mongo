@@ -101,15 +101,15 @@
 
   * `filter`   - `table`类型, 一个符合语法规范的查询条件;
 
-  * `option`   - `table`类型, 可选参数(`option.sort`/`option.limit`/`option.skip`/`option.cursor`);
+  * `option`   - `table`类型, 可选参数(`option.sort`/`option.limit`/`option.skip`/`option.cursor`/`option.size`);
 
   `filter`可以用作查询的过滤条件, 例如: `{ nickname = "李小龙" }`或一个空表; (但是不能为空数组);
 
   `option`参数有2组4个参数, 其组合作用为`游标分页`与`跳跃分页`:
 
-    * 跳跃分页(`limit`与`skip`): 操作方式类似`MySQL`、`Oracle`等数据库的`LIMIT`与`OFFSET`;
+    * 跳跃分页(`limit`与`skip`): 操作方式类似结构化数据库`MySQL`、`Oracle`等的`LIMIT`与`OFFSET`;
 
-    * 游标分页(`cursor`与`limit`): 每次迭代(包括第一次)查询返回游标(上下文), 每次返回的游标ID只能使用一次;
+    * 游标分页(`cursor`与`size`): 每次迭代(包括第一次)都会返回`size`条数据与下次迭代的游标`ID`(游标ID是一次性的);
 
   `sort`指定了排序的方式, 表达式为: `{sort = {age =  1}}` 或者 `{sort = {age =  -1}}`, (1)升序、(-1)降序;
 
@@ -181,7 +181,31 @@
 
   成功返回`table`类型的`info`, 失败返回`false`与失败信息`string`.
 
-### 6. 断开连接
+### 6. 统计查询
+
+  `function mongo:count(database, collect, filter) return info | nil, string end`
+
+  * `database`  - `string`类型, MongoDB的数据库名称;
+
+  * `collect`   - `string`类型, MongoDB的集合名称;
+
+  * `filter`  - `table`类型, 查询过滤的条件;
+
+  根据`filter`参数的过滤条件(可以为空), 统计集合内符合过滤条件的数量;
+
+  成功返回`table`类型的`info`, 失败返回`false`与失败信息`string`.
+
+### 7. 聚合查询
+
+  `function mongo:aggregate(database, collect, filters, option) return info | nil, string end`
+
+  * `database`  - `string`类型, MongoDB的数据库名称;
+
+  * `collect`   - `string`类型, MongoDB的集合名称;
+
+  * `filters`  - `table`类型, 查询过滤的条件的数组;
+
+### 8. 断开连接
 
   `function mongo:close() return nil end`
 
@@ -189,6 +213,9 @@
 
 ## 使用示例:
 
+  以下示例展示了基础API的使用方法.
+
+### 1. CRUD操作
 ```lua
 require"utils"
 
@@ -249,6 +276,9 @@ m:close()
 
 require "logging":DEBUG("结束")
 ```
+
+  输出如下:
+
 ```bash
 [candy@MacBookPro:~/Documents/cfadmin] $ ./cfadmin
 [2021-02-28 13:26:35,947] [@script/main.lua:94] [DEBUG] : "开始"
@@ -308,11 +338,77 @@ require "logging":DEBUG("结束")
 [2021-02-28 13:26:35,961] [@script/main.lua:135] [DEBUG] : "结束"
 ```
 
+### 2. 聚合操作的使用
+
+```lua
+require"utils"
+
+local mongo = require "mongo"
+local bson = require "mongo.bson"
+
+local m = mongo:new {
+  db = "mydb",        -- 授权DB名称
+  username = "admin", -- 授权用户名称
+  password = "admin", -- 授权用户密码
+}
+
+require "logging":DEBUG("开始")
+
+local ok, err = m:connect()
+if not ok then
+  return print(false, err)
+end
+
+local database, collect = "mydb", "table"
+
+local tab, id
+
+tab, err = m:count(database, collect, {})
+if not tab then
+  return print(false, err)
+end
+var_dump(tab)
+
+tab, id = m:aggregate(database, collect
+  ,{
+    { ["$match"] = {age = 26} },
+    { ["$sort"] =  {_id = -1} },
+  }
+  ,{
+    -- cursor = 8896207551195673826,  -- 游标的写法.
+    -- size = 3, -- 聚合函数内单独指定size无意义, 如有必要请在fileters里使用$limit
+  }
+)
+if not tab then
+  return print(false, err)
+end
+print(tab, #tab, id)
+-- var_dump(tab)
+
+require "logging":DEBUG("结束")
+```
+
+  输出如下:
+
+```bash
+Candy@CandyMi MSYS ~/stt_trade
+$ ./cfadmin.exe
+[2021-03-02 14:15:47,675] [@script/main.lua:92] [DEBUG] : "开始"
+{
+      ["acknowledged"] = true,
+      ["count"] = 122,
+}
+table: 0x8000f9f30      101     4732584172034615803
+[2021-03-02 14:15:47,685] [@script/main.lua:130] [DEBUG] : "结束"
+```
+
 ## 提示
 
   * 如果对`bson`库的性能有要求, 请务必编译`lbson.so`库文件出来.
 
   * 当某字段需要插入`空数组`的时候, 可以使用内置的`bson.empty_array()`方法进行构造.
+
+  * 查询未指定`cursor`但是指定了`size`, 数据如果超出`size`就会返回游标`ID`.
 
   * 一些特殊数据类型(`bson.objectid`)需要`bson`的构造方法来编码传递, 如果有疑问可以咨询作者.
 
