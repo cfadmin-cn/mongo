@@ -20,6 +20,7 @@ local class = require "class"
 local mongo = class("MongoDB")
 
 function mongo:ctor(opt)
+  self.reqid = 1
   self.SSL  = opt.SSL
   self.db   = opt.db or "admin"
   self.host = opt.host or "localhost"
@@ -27,7 +28,6 @@ function mongo:ctor(opt)
   self.username = opt.username
   self.password = opt.password
   self.auth_mode = opt.auth_mode or "SCRAM-SHA-1"
-  self.reqid = 1
   self.sock = tcp:new()
   self.have_transaction = false
   self.connected = false
@@ -80,7 +80,7 @@ function mongo:find(database, collect, filter, option)
   return tab.cursor.firstBatch or tab.cursor.nextBatch, tab.cursor.id
 end
 
----comment 新增数据
+---comment 插入数据
 ---@param database string       @需要插入的数据库名称
 ---@param collect string        @需要插入的集合名称
 ---@param documents table       @需要插入的文档数组
