@@ -181,13 +181,13 @@ end
 -- --------- QUERY --------- --
 local function send_query(self, db, table, filter, option)
   local query = {{"find", table}, {"filter", filter}, {"limit", type(option) == 'table' and toint(option.limit) or 0}, {"skip", type(option) == 'table' and toint(option.skip) or 0}, {"$db", db}}
-  if type(option) == 'table' and toint(option.cursor) and toint(option.cursor) > 4294967296 then
-    query = {{"getMore", toint(option.cursor)}, {"collection", table}, {"$db", db}}
-    if toint(option.size) then
-      query[#query+1] = {"batchSize", type(option) == 'table' and toint(option.size) or 0}
-    end
-  else
-    if type(option) == 'table' then
+  if type(option) == 'table' then
+    if toint(option.cursor) and toint(option.cursor) > 4294967296 then
+      query = {{"getMore", toint(option.cursor)}, {"collection", table}, {"$db", db}}
+      if toint(option.size) then
+        query[#query+1] = {"batchSize", type(option) == 'table' and toint(option.size) or 0}
+      end
+    else
       -- 排序条件
       if type(option.sort) == 'table' then
         query[#query+1] = {"sort", option.sort}
@@ -196,6 +196,10 @@ local function send_query(self, db, table, filter, option)
       if toint(option.size) and toint(option.size) > 0 then
         query[#query+1] = {"batchSize", type(option) == 'table' and toint(option.size) or 0}
       end
+    end
+    -- 限制返回字段
+    if type(option.project) == 'table' then
+      query[#query+1] = {"projection", option.project}
     end
   end
   local sections = bson_encode_order(unpack(query))
