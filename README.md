@@ -341,7 +341,7 @@ require "logging":DEBUG("结束")
 [2021-02-28 13:26:35,961] [@script/main.lua:135] [DEBUG] : "结束"
 ```
 
-### 2. 聚合操作的使用
+### 2. 聚合操作
 
 ```lua
 require"utils"
