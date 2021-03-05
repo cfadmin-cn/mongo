@@ -4,11 +4,11 @@
 
 ## 特性
 
-  * 完善的`CURD API`支持;
+  * 支持`CURD`、聚合、统计等计算方法;
   
-  * 使用最新版的协议(`OP_MSG`)交互更加高效;
+  * 使用最新版的协议(`OP_MSG`)交互更加高效, 相同的交互参数;
 
-  * 内置社区内最好的`BSON`解析器, 使用方便、简单、直观;
+  * 内部实现了最为完善的`BSON`解析器, 使用更加简单、解析更加高效;
 
   * 更简洁的语法降低学习成本, 核心协议实现仅用`1500`多行代码完成;
 
@@ -104,7 +104,7 @@
 
   * `filter`   - `table`类型, 一个符合语法规范的查询条件;
 
-  * `option`   - `table`类型, 可选参数(`option.sort`/`option.limit`/`option.skip`/`option.cursor`/`option.size`);
+  * `option`   - `table`类型, 可选参数(`option.sort`/`option.limit`/`option.skip`/`option.cursor`/`option.size/`option.project`);
 
   `filter`可以用作查询的过滤条件, 例如: `{ nickname = "李小龙" }`或一个空表; (但是不能为空数组);
 
@@ -114,7 +114,9 @@
 
     * 游标分页(`cursor`与`size`): 每次迭代(包括第一次)都会返回`size`条数据与下次迭代的游标`ID`(游标ID是一次性的);
 
-  `sort`指定了排序的方式, 表达式为: `{sort = {age =  1}}` 或者 `{sort = {age =  -1}}`, (1)升序、(-1)降序;
+  `sort`参数指定了排序的方式, 表达式为: `{sort = {age =  1}}` 或者 `{sort = {age =  -1}}`, (1)升序、(-1)降序;
+
+  `project`参数指定了查询时可以筛选出需要返回的字段, 这在某些集合内容较大的情况下使用非常有效;
 
   成功返回`table`类型的`info`与`integer`类型的`cursor id`, 失败返回`false`与失败信息`string`.
 
