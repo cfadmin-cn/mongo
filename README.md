@@ -4,13 +4,15 @@
 
 ## 特性
 
-  * 支持`CURD`、聚合、统计等计算方法;
+  - [x] 最新版的协议(`OP_MSG`), 交互更加高效;
+
+  - [x] 封装出了统一的`CURD`、聚合、统计等接口方法;
   
-  * 使用最新版的协议(`OP_MSG`)交互更加高效, 相同的交互参数;
+  - [x] 拥有社区最完善的`BSON`解析器, 使用更加简单、解析更加高效;
 
-  * 内部实现了最为完善的`BSON`解析器, 使用更加简单、解析更加高效;
+  - [x] 更简洁的语法降低学习成本, 无需复杂的调用即可完成功能;
 
-  * 更简洁的语法降低学习成本, 核心协议实现仅用`1500`多行代码完成;
+  - [x] 完善的使用示例, 可以自行测试实际使用情况;
 
 ## 类型
 
@@ -38,7 +40,7 @@
 
   * 大小值(`MaxKey`/`MinKey`)
 
-  * 代码(java script code)
+  * 代码(`java script code`)
 
 ## 效率
 
@@ -61,20 +63,24 @@
   `local mongo = require "mongo"`
 
   `local bson = require "mongo.bson"`
+  
+### 1. 构造方法
 
-### 1. 创建对象
+#### 创建
+
+---
 
   `function mongo:new(opt) return mongo end`
 
-  * `opt.host` - `string`类型, 服务器域名(默认是:"localhost");
+  * `opt.host` - `string`类型, 服务器域名(默认是:`"localhost"`);
 
-  * `opt.port` - `integer`类型, 服务器端口(默认是:27017");
+  * `opt.port` - `integer`类型, 服务器端口(默认是:`27017`);
 
   * `opt.SSL` - `boolean`类型, 是否需要使用`SSL`协议握手;
 
   * `opt.auth_mode` - `string`类型, 授权验证模式(仅支持:`SCRAM-SHA-1`);
 
-  * `opt.db` - `string`类型, 授权数据库名称(默认是:"admin");
+  * `opt.db` - `string`类型, 授权数据库名称(默认是:`"admin"`);
 
   * `opt.username` - `string`类型, 授权用户账号;
 
@@ -82,7 +88,9 @@
 
   调用此构造方法将会创建`MongoDB`对象.
 
-### 2. 连接服务器
+#### 连接
+
+---
 
   `function mongo:connect() return true | nil, string end`
 
@@ -94,39 +102,54 @@
 
   成功返回`true`, 失败返回`false`与失败信息`string`,
 
-### 3. 查询语句
+  
+### 断开
+
+---
+
+  `function mongo:close() return nil end`
+
+  此方法无返回值.
+
+### 2. CRUD操作
+
+#### 查询语句
+
+---
 
   `function mongo:find(database, collect, filter, option) return info, id | nil, string end`
 
-  * `database` - `string`类型, MongoDB的数据库名称;
+  * `database` - `string`类型, `MongoDB`的数据库名称;
 
-  * `collect`  - `string`类型, MongoDB的集合名称;
+  * `collect`  - `string`类型, `MongoDB`的集合名称;
 
   * `filter`   - `table`类型, 一个符合语法规范的查询条件;
 
-  * `option`   - `table`类型, 可选参数(`option.sort`/`option.limit`/`option.skip`/`option.cursor`/`option.size/`option.project`);
+  * `option`   - `table`类型, 可选参数(`option.sort`/`option.limit`/`option.skip`/`option.cursor`/`option.size`/`option.project`);
 
   `filter`可以用作查询的过滤条件, 例如: `{ nickname = "李小龙" }`或一个空表; (但是不能为空数组);
 
-  `option`参数有2组4个参数, 其组合作用为`游标分页`与`跳跃分页`:
+  `option`参数的组合作用为`游标分页`与`跳跃分页`:
 
     * 跳跃分页(`limit`与`skip`): 操作方式类似结构化数据库`MySQL`、`Oracle`等的`LIMIT`与`OFFSET`;
 
-    * 游标分页(`cursor`与`size`): 每次迭代(包括第一次)都会返回`size`条数据与下次迭代的游标`ID`(游标ID是一次性的);
+    * 游标分页(`cursor`与`size`):每次迭代(包括第一次)返回`size`条数据与下次迭代的游标`ID`(游标`ID`是一次性的);
 
-  `sort`参数指定了排序的方式, 表达式为: `{sort = {age =  1}}` 或者 `{sort = {age =  -1}}`, (1)升序、(-1)降序;
+  `sort`参数指定了排序的方式, 表达式为: `{sort = {age =  1}}` 或者 `{sort = {age =  -1}}`, (`1`)升序、(`-1`)降序;
 
-  `project`参数指定了查询时可以筛选出需要返回的字段, 这在某些集合内容较大的情况下使用非常有效;
+  `project`参数指定了查询时可以筛选出需要返回的字段, 这在需要过滤集合字段的情况下使用非常有效;
 
   成功返回`table`类型的`info`与`integer`类型的`cursor id`, 失败返回`false`与失败信息`string`.
 
-### 3. 插入语句
+#### 插入语句
+
+---
 
   `function mongo:insert(database, collect, documents, option) return info | nil, string end`
 
-  * `database`  - `string`类型, MongoDB的数据库名称;
+  * `database`  - `string`类型, `MongoDB`的数据库名称;
 
-  * `collect`   - `string`类型, MongoDB的集合名称;
+  * `collect`   - `string`类型, `MongoDB`的集合名称;
 
   * `documents` - `table数组`类型, 包含(至少)有一个或者多个(可选)文档的数组;
 
@@ -138,13 +161,15 @@
 
   成功返回`table`类型的`info`, 失败返回`false`与失败信息`string`.
 
-### 4. 更新语句
+#### 更新语句
+
+---
 
   `function mongo:update(database, collect, filter, set, option) return info | nil, string end`
 
-  * `database`  - `string`类型, MongoDB的数据库名称;
+  * `database`  - `string`类型, `MongoDB`的数据库名称;
 
-  * `collect`   - `string`类型, MongoDB的集合名称;
+  * `collect`   - `string`类型, `MongoDB`的集合名称;
 
   * `filter`  - `table`类型, 查询过滤的条件;
 
@@ -168,13 +193,15 @@
 
   成功返回`table`类型的`info`, 失败返回`false`与失败信息`string`.
 
-### 5. 删除语句
+#### 删除语句
+
+---
 
   `function mongo:delete(database, collect, option) return info | nil, string end`
 
-  * `database`  - `string`类型, MongoDB的数据库名称;
+  * `database`  - `string`类型, `MongoDB`的数据库名称;
 
-  * `collect`   - `string`类型, MongoDB的集合名称;
+  * `collect`   - `string`类型, `MongoDB`的集合名称;
 
   * `filter`  - `table`类型, 查询过滤的条件;
 
@@ -186,13 +213,17 @@
 
   成功返回`table`类型的`info`, 失败返回`false`与失败信息`string`.
 
-### 6. 统计查询
+### 3. 聚合操作
+
+#### 统计查询
+
+---
 
   `function mongo:count(database, collect, filter) return info | nil, string end`
 
-  * `database`  - `string`类型, MongoDB的数据库名称;
+  * `database`  - `string`类型, `MongoDB`的数据库名称;
 
-  * `collect`   - `string`类型, MongoDB的集合名称;
+  * `collect`   - `string`类型, `MongoDB`的集合名称;
 
   * `filter`  - `table`类型, 查询过滤的条件;
 
@@ -200,21 +231,21 @@
 
   成功返回`table`类型的`info`, 失败返回`false`与失败信息`string`.
 
-### 7. 聚合查询
+#### 聚合查询
+
+---
 
   `function mongo:aggregate(database, collect, filters, option) return info | nil, string end`
 
-  * `database`  - `string`类型, MongoDB的数据库名称;
+  * `database`  - `string`类型, `MongoDB`的数据库名称;
 
-  * `collect`   - `string`类型, MongoDB的集合名称;
+  * `collect`   - `string`类型, `MongoDB`的集合名称;
 
   * `filters`  - `table`类型, 查询过滤的条件的数组;
 
-### 8. 断开连接
+此方法的返回值内容会根据实际`filter`内的提供的参数表达式返回不同的内容;
 
-  `function mongo:close() return nil end`
-
-  此方法无返回值.
+成功返回`table`类型的`info`, 失败返回`false`与失败信息`string`.
 
 ## 使用示例:
 
