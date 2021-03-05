@@ -251,7 +251,9 @@
 
   以下示例展示了基础API的使用方法.
 
-### 1. CRUD操作
+<details>
+  <summary>1. CRUD操作</summary>
+
 ```lua
 require"utils"
 
@@ -374,7 +376,10 @@ require "logging":DEBUG("结束")
 [2021-02-28 13:26:35,961] [@script/main.lua:135] [DEBUG] : "结束"
 ```
 
-### 2. 聚合操作
+</details>
+
+<details>
+  <summary>2. 聚合操作</summary>
 
 ```lua
 require"utils"
@@ -437,6 +442,8 @@ $ ./cfadmin.exe
 table: 0x8000f9f30      101     4732584172034615803
 [2021-03-02 14:15:47,685] [@script/main.lua:130] [DEBUG] : "结束"
 ```
+
+</details>
 
 ## 提示
 
