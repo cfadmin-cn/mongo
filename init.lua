@@ -11,7 +11,7 @@ local request_auth = protocol.request_auth
 local request_handshake = protocol.request_handshake
 
 local toint = math.tointeger
-
+local tonumber = tonumber
 local fmt = string.format
 
 local tcp = require "internal.TCP"
@@ -33,6 +33,12 @@ function mongo:ctor(opt)
   self.sock = tcp:new()
   self.have_transaction = false
   self.connected = false
+end
+
+function mongo:set_timeout(timeout)
+  if self.sock and tonumber(timeout) then
+    self.sock._timeout = timeout
+  end
 end
 
 ---comment 连接服务器

@@ -156,6 +156,7 @@ local function read_msg_body(self)
   local sock = self.sock
   local header, err = read_msg_header(sock)
   if not header or header.opcode ~= STR_TO_OPCODE['OP_MSG'] then
+    self.connected = false
     return false, err or "Invalid MSG TYPE."
   end
   if header.req_id and header.resp_id ~= self.reqid then
@@ -168,6 +169,7 @@ local function read_msg_body(self)
   end
   local document = sock_read(sock, header.msg_len - 21)
   if not document then
+    self.connected = false
     return false, "[MONGO ERROR]: Server closed this session when client read reply."
   end
   self.reqid = self.reqid % MAX_INT32 + 1
@@ -356,7 +358,10 @@ function protocol.request_handshake(self)
     return false, "[MONGO ERROR]: Server closed this session when client send hello request."
   end
   local header, response, err = read_reply(self)
-  if not header or response.ok ~= 1 or response.maxWireVersion < 6 then
+  if not header then
+    return false, "[MONGO ERROR]: Server connected refuse."
+  end
+  if response.ok ~= 1 or response.maxWireVersion < 6 then
     -- 如果探测到MongoDB版本低于3.6则当做连接失败
     return false, err or response.errmsg or "[MONGO ERROR]: Version below 3.6 are not supported."
   end
