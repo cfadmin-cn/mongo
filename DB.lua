@@ -145,9 +145,16 @@ function DB:delete(database, collect, filter, option)
   return run_query(self, "delete", database, collect, filter, option)
 end
 
-function DB:count()
+-- 统计
+function DB:count(database, collect, filter, option)
   assert(self and self.INITIALIZATION, "DB needs to be initialized first.")
-  return self.current, self.max, #self.co_pool, #self.db_pool
+  return run_query(self, "count", database, collect, filter, option)
+end
+
+-- 聚合
+function DB:aggregate(database, collect, filter, option)
+  assert(self and self.INITIALIZATION, "DB needs to be initialized first.")
+  return run_query(self, "aggregate", database, collect, filter, option)
 end
 
 return DB
