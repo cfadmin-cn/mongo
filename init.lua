@@ -6,6 +6,9 @@ local request_update = protocol.request_update
 local request_insert = protocol.request_insert
 local request_delete = protocol.request_delete
 local request_aggregate = protocol.request_aggregate
+local request_getindexes = protocol.request_getindexes
+local request_dropindexes = protocol.request_dropindexes
+local request_createindex = protocol.request_createindex
 -- 握手
 local request_auth = protocol.request_auth
 local request_handshake = protocol.request_handshake
@@ -78,7 +81,7 @@ end
 ---@param collect string        @需要查询的集合名称
 ---@param filter table          @需要执行查询的条件
 ---@param option table          @需要查询的可选参数(`cursor`/`limit`/`skip`/`sort`)
----@return table, integer | nil, string  @成功返回结果数据与游标`id`, 失败返回`false`与出错信息,
+---@return table, integer | nil, string  @成功返回结果数据与游标`id`, 失败返回`false`与出错信息;
 function mongo:find(database, collect, filter, option)
   assert(type(database) == 'string' and database ~= '' and type(collect) == 'string' and collect ~= '', "Invalid find collect or database.")
   local tab, err = request_query(self, database, collect, filter, option)
@@ -139,9 +142,9 @@ end
 ---@param collect string        @需要查询的集合名称
 ---@param filter table          @需要执行查询的条件
 ---@param option table          @需要查询的可选参数
----@return table, integer | nil, string  @成功返回结果数据与游标`id`, 失败返回`false`与出错信息,
+---@return table, integer | nil, string  @成功返回结果数据与游标`id`, 失败返回`false`与出错信息;
 function mongo:count(database, collect, filter, option)
-  assert(type(database) == 'string' and database ~= '' and type(collect) == 'string' and collect ~= '', "Invalid find collect or database.")
+  assert(type(database) == 'string' and database ~= '' and type(collect) == 'string' and collect ~= '', "Invalid count collect or database.")
   local tab, err = request_count(self, database, collect, filter, option)
   if not tab or tab.errmsg then
     return false, err or fmt('{"errcode":%d,"errmsg":"%s"}', tab.code, tab.errmsg)
@@ -154,14 +157,57 @@ end
 ---@param collect string        @需要查询的集合名称
 ---@param filter table          @需要执行查询的条件
 ---@param option table          @需要查询的可选参数
----@return table, integer | nil, string  @成功返回结果数据与游标`id`, 失败返回`false`与出错信息,
+---@return table, integer | nil, string  @成功返回结果数据与游标`id`, 失败返回`false`与出错信息;
 function mongo:aggregate(database, collect, filter, option)
-  assert(type(database) == 'string' and database ~= '' and type(collect) == 'string' and collect ~= '', "Invalid find collect or database.")
+  assert(type(database) == 'string' and database ~= '' and type(collect) == 'string' and collect ~= '', "Invalid aggregate collect or database.")
   local tab, err = request_aggregate(self, database, collect, filter, option)
   if not tab or tab.errmsg then
     return false, err or fmt('{"errcode":%d,"errmsg":"%s"}', tab.code, tab.errmsg)
   end
   return tab.cursor.firstBatch or tab.cursor.nextBatch, tab.cursor.id
+end
+
+---comment 创建索引
+---@param database string            @需要指定的数据库名称
+---@param collect string             @需要指定的集合名称
+---@param indexs table               @索引名称与内容
+---@param option table               @索引的额外参数(`background`/`unique`等)
+---@return table, nil | nil, string  @成功返回结果创建内容, 失败返回`false`与出错信息;
+function mongo:create_index(database, collect, indexs, option)
+  assert(type(database) == 'string' and database ~= '' and type(collect) == 'string' and collect ~= '', "Invalid Indexed collect or database.")
+  assert(type(indexs) == 'table', "Invalid Index type.")
+  local tab, err = request_createindex(self, database, collect, indexs, option or {})
+  if not tab or tab.errmsg then
+    return false, err or fmt('{"errcode":%d,"errmsg":"%s"}', tab.code, tab.errmsg)
+  end
+  return tab
+end
+
+---comment 创建索引
+---@param database string            @需要指定的数据库名称
+---@param collect string             @需要指定的集合名称
+---@return table, nil | nil, string  @成功返回结果数据, 失败返回`false`与出错信息;
+function mongo:get_indexes(database, collect)
+  assert(type(database) == 'string' and database ~= '' and type(collect) == 'string' and collect ~= '', "Invalid Indexed collect or database.")
+  local tab, err = request_getindexes(self, database, collect)
+  if not tab or tab.errmsg then
+    return false, err or fmt('{"errcode":%d,"errmsg":"%s"}', tab.code, tab.errmsg)
+  end
+  return tab.cursor.firstBatch
+end
+
+---comment 创建索引
+---@param database  string          @需要指定的数据库名称
+---@param collect   string          @需要指定的集合名称
+---@param indexname string          @需要删除的索引名称
+function mongo:drop_indexes(database, collect, indexname)
+  assert(type(database) == 'string' and database ~= '' and type(collect) == 'string' and collect ~= '', "Invalid Indexed collect or database.")
+  assert(type(indexname) == 'string', "Invalid Index name.")
+  local tab, err = request_dropindexes(self, database, collect, indexname)
+  if not tab or tab.errmsg then
+    return false, err or fmt('{"errcode":%d,"errmsg":"%s"}', tab.code, tab.errmsg)
+  end
+  return tab
 end
 
 ---comment 关闭连接

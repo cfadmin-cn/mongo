@@ -272,7 +272,46 @@ end
 local function read_aggregate(self)
   return read_msg_body(self)
 end
+
+local function read_index(self)
+  return read_msg_body(self)
+end
 -- --------- AGGREGATE --------- --
+
+-- --------- Indexed --------- --
+local function send_createindex(self, db, table, indexes, option)
+  local index_name = {}
+  local keys = {}
+  for name, value in pairs(indexes) do
+    index_name[#index_name+1] = name .. "_" .. value
+    keys[name] = value
+  end
+  local index_array = {
+    {
+      name = option.name and option.name or ("_" .. concat(index_name, "_") .. "_"),
+      key = keys,
+      unique = option.unique and 1 or nil,
+      sparse = option.sparse and 1 or false,
+      background = option.background and 1 or false,
+    }
+  }
+  local query = {{"createIndexes", table}, {"indexes", index_array}, {"$db", db}}
+  local sections = bson_encode_order(unpack(query))
+  return self.sock:send(strpack("<i4i4i4i4i4B", #sections + 21, self.reqid, 0, STR_TO_OPCODE["OP_MSG"], 0, 0)) and self.sock:send(sections)
+end
+
+local function send_getindexes(self, db, table)
+  local query = {{"listIndexes", table}, {"cursor", bson.empty_table()}, {"$db", db}}
+  local sections = bson_encode_order(unpack(query))
+  return self.sock:send(strpack("<i4i4i4i4i4B", #sections + 21, self.reqid, 0, STR_TO_OPCODE["OP_MSG"], 0, 0)) and self.sock:send(sections)
+end
+
+local function send_dropindexes(self, db, table, indexname)
+  local query = {{"dropIndexes", table}, {"index", indexname}, {"$db", db}}
+  local sections = bson_encode_order(unpack(query))
+  return self.sock:send(strpack("<i4i4i4i4i4B", #sections + 21, self.reqid, 0, STR_TO_OPCODE["OP_MSG"], 0, 0)) and self.sock:send(sections)
+end
+-- --------- Indexed --------- --
 
 -- --------- HANDSHAKE --------- --
 local function send_handshake(self)
@@ -421,6 +460,30 @@ function protocol.request_aggregate(self, db, table, filter, option)
     return false, "[MONGO ERROR]: Server closed this session when client send aggregate request."
   end
   return read_aggregate(self)
+end
+
+---comment 创建索引
+function protocol.request_createindex(self, db, table, indexs, option)
+  if not send_createindex(self, db, table, indexs, option) then
+    return false, "[MONGO ERROR]: Server closed this session when client send createIndex request."
+  end
+  return read_index(self)
+end
+
+---comment 获取索引
+function protocol.request_getindexes(self, db, table)
+  if not send_getindexes(self, db, table) then
+    return false, "[MONGO ERROR]: Server closed this session when client send getIndexes request."
+  end
+  return read_index(self)
+end
+
+---comment 获取索引
+function protocol.request_dropindexes(self, db, table, indexname)
+  if not send_dropindexes(self, db, table, indexname) then
+    return false, "[MONGO ERROR]: Server closed this session when client send dropIndex request."
+  end
+  return read_index(self)
 end
 
 return protocol
