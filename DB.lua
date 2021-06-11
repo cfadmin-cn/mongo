@@ -157,4 +157,22 @@ function DB:aggregate(database, collect, filter, option)
   return run_query(self, "aggregate", database, collect, filter, option)
 end
 
+-- 创建索引
+function DB:create_index(database, collect, indexes, option)
+  assert(self and self.INITIALIZATION, "DB needs to be initialized first.")
+  return run_query(self, "create_index", database, collect, indexes, option)
+end
+
+-- 删除指定索引
+function DB:drop_indexes(database, collect, indexname)
+  assert(self and self.INITIALIZATION, "DB needs to be initialized first.")
+  return run_query(self, "drop_indexes", database, collect, indexname)
+end
+
+-- 获取全部索引
+function DB:get_indexes(database, collect)
+  assert(self and self.INITIALIZATION, "DB needs to be initialized first.")
+  return run_query(self, "get_indexes", database, collect)
+end
+
 return DB
