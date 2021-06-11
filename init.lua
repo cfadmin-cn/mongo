@@ -55,7 +55,7 @@ function mongo:connect()
     return false, err
   end
   if self.SSL then
-    ok, err = self.sock.ssl_handshake()
+    ok, err = self.sock:ssl_handshake()
     if not ok then
       return false, err or "Mongo SSL handshake failed."
     end
