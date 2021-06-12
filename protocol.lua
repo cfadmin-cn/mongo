@@ -18,6 +18,7 @@ local base64decode = crypt.base64decode
 local base64encode = crypt.base64encode
 
 local sys = require "sys"
+local now = sys.now
 local new_tab = sys.new_tab
 
 local next = next
@@ -313,6 +314,73 @@ local function send_dropindexes(self, db, table, indexname)
 end
 -- --------- Indexed --------- --
 
+-- --------- GridFs --------- --
+local function send_gridfs_files_list(self, db, table, filter, id)
+  local query = {{"find", table .. ".files"}, {"filter", filter}, {"$db", db}}
+  if toint(id) and toint(id) > 0 then
+    query = {{"getMore", toint(id)}, {"collection", table .. ".files"}, {"$db", db}}
+  end
+  local sections = bson_encode_order(unpack(query))
+  return self.sock:send(strpack("<i4i4i4i4i4B", #sections + 21, self.reqid, 0, STR_TO_OPCODE["OP_MSG"], 0, 0)) and self.sock:send(sections)
+end
+
+local function send_gridfs_chunks_list(self, db, table, filter, id)
+  local query = {{"find", table .. ".chunks"}, {"filter", filter}, {"$db", db}}
+  if toint(id) and toint(id) > 0 then
+    query = {{"getMore", toint(id)}, {"collection", table .. ".chunks"}, {"$db", db}}
+  end
+  local sections = bson_encode_order(unpack(query))
+  return self.sock:send(strpack("<i4i4i4i4i4B", #sections + 21, self.reqid, 0, STR_TO_OPCODE["OP_MSG"], 0, 0)) and self.sock:send(sections)
+end
+
+local function send_gridfs_files_delete(self, db, table, filter, limit)
+  local section1 = bson_encode_order({"delete", table .. ".files"}, {"$db", db}, {"ordered", true})
+  local section2 = bson_encode_order({"q", filter}, {"limit", toint(limit) and toint(limit) > 0 and toint(limit) or 0})
+  local sections = concat{strpack("<B", 0), section1, strpack("<Bi4z", 1, 8 + 4 + #section2, "deletes"), section2 }
+  return self.sock:send(strpack("<i4i4i4i4i4", 20 + #sections, self.reqid, 0, STR_TO_OPCODE["OP_MSG"], 0)) and self.sock:send(sections)
+end
+
+local function send_gridfs_chunks_delete(self, db, table, filter, limit)
+  local section1 = bson_encode_order({"delete", table .. ".chunks"}, {"$db", db}, {"ordered", true})
+  local section2 = bson_encode_order({"q", filter}, {"limit", toint(limit) and toint(limit) > 0 and toint(limit) or 0})
+  local sections = concat{strpack("<B", 0), section1, strpack("<Bi4z", 1, 10 + 4 + #section2, "documents"), section2 }
+  return self.sock:send(strpack("<i4i4i4i4i4", 20 + #sections, self.reqid, 0, STR_TO_OPCODE["OP_MSG"], 0)) and self.sock:send(sections)
+end
+
+local function send_gridfs_files_upload(self, db, table, oid, filename, filelength, md5sum, meta)
+  local section1 = bson_encode_order({"insert", table .. ".files"}, {"ordered", true}, {"writeConcern", {w = "majority"}}, {"$db", db})
+  local section2 = bson_encode_order({"_id", oid}, {"length", filelength}, {"chunkSize", 261120}, {"uploadDate", now() * 1e3 // 1}, {"md5", md5sum}, {"filename", filename}, {"metadata", meta or {}})
+  local sections = concat{strpack("<B", 0), section1, strpack("<Bi4z", 1, 10 + 4 + #section2, "documents"), section2 }
+  return self.sock:send(strpack("<i4i4i4i4i4", 20 + #sections, self.reqid, 0, STR_TO_OPCODE["OP_MSG"], 0)) and self.sock:send(sections)
+end
+
+local function send_gridfs_chunks_upload(self, db, table, fid, file)
+  local section1 = bson_encode_order({"insert", table .. ".chunks"}, {"ordered", true}, {"writeConcern", {w = "majority"}}, {"$db", db})
+  local list = new_tab(128, 0)
+  local len = #file
+  local s, e = 1, 261120
+  while true do
+    list[#list+1] = { file = file:sub(s, e)}
+    if e >= len then
+      break
+    end
+    s = e + 1
+    e = s + 261120
+  end
+  local sections2 = new_tab(128, 0)
+  for index, item in ipairs(list) do
+    sections2[#sections2+1] = bson_encode_order({"_id", bson.objectid()}, {"files_id", bson.objectid(fid)}, {"n", index - 1}, {"data", bson.binary(item.file)})
+  end
+  local section2 = concat(sections2)
+  local sections = concat{strpack("<B", 0), section1, strpack("<Bi4z", 1, 10 + 4 + #section2, "documents"), section2}
+  return self.sock:send(strpack("<i4i4i4i4i4", 20 + #sections, self.reqid, 0, STR_TO_OPCODE["OP_MSG"], 0)) and self.sock:send(sections)
+end
+
+local function read_gridfs(self)
+  return read_msg_body(self)
+end
+-- --------- Indexed --------- --
+
 -- --------- HANDSHAKE --------- --
 local function send_handshake(self)
   local query = assert(bson_encode_order(table.unpack({{ "isMaster", true }})))
@@ -412,6 +480,7 @@ end
 ---comment 查询语句
 function protocol.request_query(self, db, table, filter, option)
   if not send_query(self, db, table, filter, option) then
+    self.connected = false
     return false, "[MONGO ERROR]: Server closed this session when client send query request."
   end
   return read_query(self)
@@ -420,6 +489,7 @@ end
 ---comment 插入语句
 function protocol.request_insert(self, db, table, array, option)
   if not send_insert(self, db, table, array, option) then
+    self.connected = false
     return false, "[MONGO ERROR]: Server closed this session when client send insert request."
   end
   return read_insert(self)
@@ -428,6 +498,7 @@ end
 ---comment 更新语句
 function protocol.request_update(self, db, table, filter, update, option)
   if not send_update(self, db, table, filter, update, option) then
+    self.connected = false
     return false, "[MONGO ERROR]: Server closed this session when client send update request."
   end
   return read_update(self)
@@ -436,6 +507,7 @@ end
 ---comment 删除语句
 function protocol.request_delete(self, db, table, array, option)
   if not send_delete(self, db, table, array, option) then
+    self.connected = false
     return false, "[MONGO ERROR]: Server closed this session when client send delete request."
   end
   return read_delete(self)
@@ -444,6 +516,7 @@ end
 ---comment 统计查询
 function protocol.request_count(self, db, table, filter, option)
   if not send_aggregate(self, db, table, { { ["$match"] = type(filter) == 'table' and filter or {} }, {["$group"] = { _id = bson.null(), n = {['$sum']  = 1 } }} }, option) then
+    self.connected = false
     return false, "[MONGO ERROR]: Server closed this session when client send count request."
   end
   return read_aggregate(self)
@@ -457,6 +530,7 @@ function protocol.request_aggregate(self, db, table, filter, option)
     filter = { filter }
   end
   if not send_aggregate(self, db, table, filter, option) then
+    self.connected = false
     return false, "[MONGO ERROR]: Server closed this session when client send aggregate request."
   end
   return read_aggregate(self)
@@ -465,6 +539,7 @@ end
 ---comment 创建索引
 function protocol.request_createindex(self, db, table, indexs, option)
   if not send_createindex(self, db, table, indexs, option) then
+    self.connected = false
     return false, "[MONGO ERROR]: Server closed this session when client send createIndex request."
   end
   return read_index(self)
@@ -473,6 +548,7 @@ end
 ---comment 获取索引
 function protocol.request_getindexes(self, db, table)
   if not send_getindexes(self, db, table) then
+    self.connected = false
     return false, "[MONGO ERROR]: Server closed this session when client send getIndexes request."
   end
   return read_index(self)
@@ -481,9 +557,62 @@ end
 ---comment 获取索引
 function protocol.request_dropindexes(self, db, table, indexname)
   if not send_dropindexes(self, db, table, indexname) then
+    self.connected = false
     return false, "[MONGO ERROR]: Server closed this session when client send dropIndex request."
   end
   return read_index(self)
+end
+
+---comment 获取GridFS Files
+function protocol.request_gridfs_files_list(self, db, table, filter, id)
+  if not send_gridfs_files_list(self, db, table, filter, id) then
+    self.connected = false
+    return false, "[MONGO ERROR]: Server closed this session when client send GridFS request."
+  end
+  return read_gridfs(self)
+end
+
+---comment 获取GridFS Chunks
+function protocol.request_gridfs_chunks_list(self, db, table, filter, id)
+  if not send_gridfs_chunks_list(self, db, table, filter, id) then
+    self.connected = false
+    return false, "[MONGO ERROR]: Server closed this session when client send GridFS request."
+  end
+  return read_gridfs(self)
+end
+
+---comment 删除GridFS Files
+function protocol.request_gridfs_files_delete(self, db, table, filter, limit)
+  if not send_gridfs_files_delete(self, db, table, filter, limit) then
+    self.connected = false
+    return false, "[MONGO ERROR]: Server closed this session when client send GridFS request."
+  end
+  return read_gridfs(self)
+end
+
+---comment 删除GridFS Chunks
+function protocol.request_gridfs_chunks_delete(self, db, table, filter, limit)
+  if not send_gridfs_chunks_delete(self, db, table, filter, limit) then
+    self.connected = false
+    return false, "[MONGO ERROR]: Server closed this session when client send GridFS request."
+  end
+  return read_gridfs(self)
+end
+
+function protocol.request_gridfs_files_upload(self, db, table, oid, filename, file, md5sum, meta)
+  if not send_gridfs_files_upload(self, db, table, oid, filename, file, md5sum, meta) then
+    self.connected = false
+    return false, "[MONGO ERROR]: Server closed this session when client send GridFS request."
+  end
+  return read_gridfs(self)
+end
+
+function protocol.request_gridfs_chunks_upload(self, db, table, fid, file)
+  if not send_gridfs_chunks_upload(self, db, table, fid, file) then
+    self.connected = false
+    return false, "[MONGO ERROR]: Server closed this session when client send GridFS request."
+  end
+  return read_gridfs(self)
 end
 
 return protocol

@@ -74,7 +74,11 @@ local function run_query(self, name, ...)
   while 1 do
     db = pop_db(self)
     if db then
-      ok, ret, err = xpcall(db[name], traceback, db, ...)
+      local func, cls = db[name], db
+      if not func then
+        func, cls = db.gridfs[name], db.gridfs
+      end
+      ok, ret, err = xpcall(func, traceback, cls, ...)
       if db.connected then
         break
       end
@@ -122,57 +126,87 @@ function DB:connect ()
 end
 
 -- 查询语句
-function DB:find(database, collect, filter, option)
+function DB:find(database, collect, ...)
   assert(self and self.INITIALIZATION, "DB needs to be initialized first.")
-  return run_query(self, "find", database, collect, filter, option)
+  return run_query(self, "find", database, collect, ...)
 end
 
 -- 插入语句
-function DB:insert(database, collect, documents, option)
+function DB:insert(database, collect, ...)
   assert(self and self.INITIALIZATION, "DB needs to be initialized first.")
-  return run_query(self, "insert", database, collect, documents, option)
+  return run_query(self, "insert", database, collect, ...)
 end
 
 -- 修改语句
-function DB:update(database, collect, filter, update, option)
+function DB:update(database, collect, ...)
   assert(self and self.INITIALIZATION, "DB needs to be initialized first.")
-  return run_query(self, "update", database, collect, filter, update, option)
+  return run_query(self, "update", database, collect, ...)
 end
 
 -- 删除语句
-function DB:delete(database, collect, filter, option)
+function DB:delete(database, collect, ...)
   assert(self and self.INITIALIZATION, "DB needs to be initialized first.")
-  return run_query(self, "delete", database, collect, filter, option)
+  return run_query(self, "delete", database, collect, ...)
 end
 
 -- 统计
-function DB:count(database, collect, filter, option)
+function DB:count(database, collect, ...)
   assert(self and self.INITIALIZATION, "DB needs to be initialized first.")
-  return run_query(self, "count", database, collect, filter, option)
+  return run_query(self, "count", database, collect, ...)
 end
 
 -- 聚合
-function DB:aggregate(database, collect, filter, option)
+function DB:aggregate(database, collect, ...)
   assert(self and self.INITIALIZATION, "DB needs to be initialized first.")
-  return run_query(self, "aggregate", database, collect, filter, option)
+  return run_query(self, "aggregate", database, collect, ...)
 end
 
 -- 创建索引
-function DB:create_indexes(database, collect, indexes, option)
+function DB:create_indexes(database, collect, ...)
   assert(self and self.INITIALIZATION, "DB needs to be initialized first.")
-  return run_query(self, "create_indexes", database, collect, indexes, option)
+  return run_query(self, "create_indexes", database, collect, ...)
 end
 
 -- 删除指定索引
-function DB:drop_indexes(database, collect, indexname)
+function DB:drop_indexes(database, collect, ...)
   assert(self and self.INITIALIZATION, "DB needs to be initialized first.")
-  return run_query(self, "drop_indexes", database, collect, indexname)
+  return run_query(self, "drop_indexes", database, collect, ...)
 end
 
 -- 获取全部索引
-function DB:get_indexes(database, collect)
+function DB:get_indexes(database, collect, ...)
   assert(self and self.INITIALIZATION, "DB needs to be initialized first.")
-  return run_query(self, "get_indexes", database, collect)
+  return run_query(self, "get_indexes", database, collect, ...)
+end
+
+-- 查找文件
+function DB:gridfs_find(database, collect, ...)
+  assert(self and self.INITIALIZATION, "DB needs to be initialized first.")
+  return run_query(self, "gridfs_find", database, collect, ...)
+end
+
+-- 查找文件
+function DB:gridfs_findall(database, collect, ...)
+  assert(self and self.INITIALIZATION, "DB needs to be initialized first.")
+  return run_query(self, "gridfs_findall", database, collect, ...)
+end
+
+-- 删除文件
+function DB:gridfs_delete(database, collect, ...)
+  assert(self and self.INITIALIZATION, "DB needs to be initialized first.")
+  return run_query(self, "gridfs_delete", database, collect, ...)
+end
+
+-- 下载文件
+function DB:gridfs_download(database, collect, ...)
+  assert(self and self.INITIALIZATION, "DB needs to be initialized first.")
+  return run_query(self, "gridfs_download", database, collect, ...)
+end
+
+-- 上传文件
+function DB:gridfs_upload(database, collect, ...)
+  assert(self and self.INITIALIZATION, "DB needs to be initialized first.")
+  return run_query(self, "gridfs_upload", database, collect, ...)
 end
 
 return DB

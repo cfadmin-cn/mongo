@@ -19,6 +19,8 @@ local fmt = string.format
 
 local tcp = require "internal.TCP"
 
+local gridfs = require "mongo.gridfs"
+
 local class = require "class"
 
 ---@class  MongoDB  @`MongoDB`对象
@@ -34,6 +36,7 @@ function mongo:ctor(opt)
   self.password = opt.password
   self.auth_mode = opt.auth_mode or "SCRAM-SHA-1"
   self.sock = tcp:new()
+  self.gridfs = gridfs:new({ctx = self})
   self.have_transaction = false
   self.connected = false
 end
@@ -216,6 +219,10 @@ function mongo:close()
   if self.sock then
     self.sock:close()
     self.sock = nil
+  end
+  if self.gridfs then
+    self.gridfs:close()
+    self.gridfs = nil
   end
 end
 
