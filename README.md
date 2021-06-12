@@ -7,6 +7,8 @@
   - [x] 最新版的协议(`OP_MSG`), 交互更加高效;
 
   - [x] 封装出了统一的`CURD`、聚合、统计等接口方法;
+
+  - [x] 对`GridFS`的上传、查询、删除等操作, 并且支持分片传输;
   
   - [x] 拥有社区最完善的`BSON`解析器, 使用更加简单、解析更加高效;
 
@@ -445,9 +447,120 @@ table: 0x8000f9f30      101     4732584172034615803
 
 </details>
 
+<details>
+  <summary>3. 索引操作</summary>
+
+```lua
+local mongo = require "mongo"
+
+require "utils"
+
+local m = mongo:new { db = "mydb" }
+
+if not m:connect() then
+  return print(false, "连接失败")
+end
+
+local tab, info = m:create_indexes("mydb", "test", { nickname = 1, age = -1}, { unique = 1, background = 1})
+if not tab then
+  return print(false, info)
+end
+var_dump(tab)
+
+local tab, info = m:get_indexes("mydb", "test")
+if not tab then
+  return print(false, info)
+end
+var_dump(tab)
+
+local tab, info = m:drop_indexes("mydb", "test", "nickname_1_age_1")
+if not tab then
+  return print(false, info)
+end
+var_dump(tab)
+```
+
+</details>
+
+<details>
+
+  <summary>4. GridFS操作</summary>
+
+```lua
+require "utils"
+local mongo = require "mongo"
+
+local m = mongo:new { db = "mydb" }
+
+if not m:connect() then
+  return print(false, "连接失败")
+end
+
+local tab, id = m.gridfs:gridfs_find("mydb", "fs", { })
+if not tab then
+  return print(false, id)
+end
+print(id)
+var_dump(tab)
+
+if id > 0 then
+  local tab, id = m.gridfs:gridfs_find("mydb", "fs", {}, id)
+  if not tab then
+    return print(false, id)
+  end
+  print(id)
+  var_dump(tab)
+end
+
+local tab, info = m.gridfs:gridfs_delete("mydb", "fs", {})
+if not tab then
+  return print(false, info)
+end
+var_dump(tab)
+```
+
+</details>
+
+<details>
+
+  <summary>5. DB的使用</summary>
+
+```lua
+require "utils"
+local DB = require "mongo.DB"
+
+local m = DB:new { db = "mydb" }
+
+if not m:connect() then
+  return print(false, "连接失败")
+end
+
+local tab, id = m:find("mydb", "test", { })
+if not tab then
+  return print(false, id)
+end
+var_dump(tab)
+
+local tab, id = m:delete("mydb", "test", { })
+if not tab then
+  return print(false, id)
+end
+var_dump(tab)
+
+local tab, id = m:find("mydb", "test", { })
+if not tab then
+  return print(false, id)
+end
+var_dump(tab)
+```
+
+</details>
+
 ## 提示
 
-  * 如果对`bson`库的性能有要求, 请务必编译`lbson.so`库文件出来.
+  * 如需删除数据请一定注意使用方法的行为是否如你预期.
+
+  * 对`bson`库的性能有一定的要求, 请务必编译`lbson.so`库文件出来.
 
   * 当某字段需要插入`空数组`的时候, 可以使用内置的`bson.empty_array()`方法进行构造.
 
