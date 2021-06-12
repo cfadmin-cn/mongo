@@ -158,9 +158,9 @@ function DB:aggregate(database, collect, filter, option)
 end
 
 -- 创建索引
-function DB:create_index(database, collect, indexes, option)
+function DB:create_indexes(database, collect, indexes, option)
   assert(self and self.INITIALIZATION, "DB needs to be initialized first.")
-  return run_query(self, "create_index", database, collect, indexes, option)
+  return run_query(self, "create_indexes", database, collect, indexes, option)
 end
 
 -- 删除指定索引

@@ -170,13 +170,13 @@ end
 ---comment 创建索引
 ---@param database string            @需要指定的数据库名称
 ---@param collect string             @需要指定的集合名称
----@param indexs table               @索引名称与内容
----@param option table               @索引的额外参数(`background`/`unique`等)
+---@param indexes table              @索引名称与内容
+---@param option  table              @索引的额外参数(`background`/`unique`等)
 ---@return table, nil | nil, string  @成功返回结果创建内容, 失败返回`false`与出错信息;
-function mongo:create_index(database, collect, indexs, option)
+function mongo:create_indexes(database, collect, indexes, option)
   assert(type(database) == 'string' and database ~= '' and type(collect) == 'string' and collect ~= '', "Invalid Indexed collect or database.")
-  assert(type(indexs) == 'table', "Invalid Index type.")
-  local tab, err = request_createindex(self, database, collect, indexs, option or {})
+  assert(type(indexes) == 'table', "Invalid Index type.")
+  local tab, err = request_createindex(self, database, collect, indexes, option or {})
   if not tab or tab.errmsg then
     return false, err or fmt('{"errcode":%d,"errmsg":"%s"}', tab.code, tab.errmsg)
   end
