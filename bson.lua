@@ -44,14 +44,22 @@ local ok, crypt, hexencode, hexdecode, sys, new_tab, timestamp, md5, uuid, guid,
 ok, sys = pcall(require, "sys")
 -- ok = false
 if ok then
+  local INCRY_ID = math_random(1 << 16, 1 << 18)
   local now = sys.now
   new_tab = sys.new_tab
   timestamp = function () return now() * 1e3 // 1 end
-  INCRY = function() return ((now() * 1e3) // 1) & 0xFFFFFF end
+  INCRY = function()
+    INCRY_ID = (INCRY_ID & 0xFFFFFF) + 1
+    return INCRY_ID
+  end
 else
+  local INCRY_ID = math_random(1 << 16, 1 << 18)
   new_tab = function (_, _) return {} end
   timestamp = function () return os_time() * 1e3 end
-  INCRY = function() return math_random(1, 1 << 24) end
+  INCRY = function()
+    INCRY_ID = (INCRY_ID & 0xFFFFFF) + 1
+    return INCRY_ID
+  end
 end
 
 ok, crypt = pcall(require, "crypt")
@@ -589,13 +597,13 @@ end
 ---@param  oid  string | nil @如果指定必须为24个字节的字符串
 ---@return function          @该类型的构造方法
 function bson.objectid(oid)
-  return function ()
-    if oid then
-      oid = hexdecode(assert(type(oid) == 'string' and #oid == 24 and oid, "oid string must equal 24 bytes."))
-    else
-      oid = strpack("<I4I3I2I3", os_time(), HOST, PID, INCRY())
+  if oid then
+    return function ()
+      return hexdecode(assert(type(oid) == 'string' and #oid == 24 and oid, "oid string must equal 24 bytes.")), BSON_OBJECTID
     end
-    return oid, BSON_OBJECTID
+  end
+  return function ()
+    return strpack("<I4I3I2>I3", os_time(), HOST, PID, INCRY()), BSON_OBJECTID
   end
 end
 
