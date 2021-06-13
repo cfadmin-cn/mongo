@@ -85,7 +85,7 @@ function GRIDFS:gridfs_upload(database, collect, filename, file, meta)
   if not tab1 then
     return false, err or fmt('{"errcode":%d,"errmsg":"%s"}', tab1.code, tab1.errmsg)
   end
-  return { acknowledged = true, insertedCount = tab1["n"], sharedCount = tab2["n"] }
+  return { acknowledged = true, _id = oid, insertedCount = tab1["n"], sharedCount = tab2["n"] }
 end
 
 ---comment 下载
