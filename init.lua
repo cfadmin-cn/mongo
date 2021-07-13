@@ -5,6 +5,7 @@ local request_query = protocol.request_query
 local request_update = protocol.request_update
 local request_insert = protocol.request_insert
 local request_delete = protocol.request_delete
+local request_mapreduce = protocol.request_mapreduce
 local request_aggregate = protocol.request_aggregate
 local request_getindexes = protocol.request_getindexes
 local request_dropindexes = protocol.request_dropindexes
@@ -168,6 +169,23 @@ function mongo:aggregate(database, collect, filter, option)
     return false, err or fmt('{"errcode":%d,"errmsg":"%s"}', tab.code, tab.errmsg)
   end
   return tab.cursor.firstBatch or tab.cursor.nextBatch, tab.cursor.id
+end
+
+---comment MapReduce - 计算函数
+---@param database string       @需要查询的数据库名称
+---@param collect  string       @需要查询的集合名称
+---@param map      string       @需要查询的映射函数(`javascript function`)
+---@param reduce   string       @需要查询的统计函数(`javascript function`)
+---@param option   table        @需要查询的条件(`query`/`limit`/`sort`/`out`)
+---@return table | nil, string  @成功返回结果数据与游标`id`, 失败返回`false`与出错信息;
+function mongo:mapreduce(database, collect, map, reduce, option)
+  assert(type(database) == 'string' and database ~= '' and type(collect) == 'string' and collect ~= '', "Invalid mapreduce collect or database.")
+  assert(type(map) == 'string' and map ~= '' and type(reduce) == 'string' and reduce ~= '', "Invalid Map or Reduce function.")
+  local tab, err = request_mapreduce(self, database, collect, map, reduce, option)
+  if not tab or tab.errmsg then
+    return false, err or fmt('{"errcode":%d,"errmsg":"%s"}', tab.code, tab.errmsg)
+  end
+  return tab.results
 end
 
 ---comment 创建索引

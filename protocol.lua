@@ -273,11 +273,33 @@ end
 local function read_aggregate(self)
   return read_msg_body(self)
 end
+-- --------- AGGREGATE --------- --
 
-local function read_index(self)
+-- --------- MapReduce --------- --
+local function send_mapreduce(self, db, table, map, reduce, option)
+  option = type(option) == 'table' and option or {}
+  local query = {
+    {"mapReduce", table},
+    {"map", bson.dump(map)},
+    {"reduce", bson.dump(reduce)},
+    {"out", option.out or { inline = 1.0 }},
+  }
+  if option.sort then
+    query[#query+1] = {"sort", option.sort }
+  end
+  if option.limit then
+    query[#query+1] = {"limit", option.limit }
+  end
+  query[#query+1] = {"query", type(option.out) == 'table' and option.out or bson.empty_table()}
+  query[#query+1] = {"$db", db}
+  local sections = bson_encode_order(unpack(query))
+  return self.sock:send(strpack("<i4i4i4i4i4B", #sections + 21, self.reqid, 0, STR_TO_OPCODE["OP_MSG"], 0, 0)) and self.sock:send(sections)
+end
+
+local function read_mapreduce(self)
   return read_msg_body(self)
 end
--- --------- AGGREGATE --------- --
+-- --------- MapReduce --------- --
 
 -- --------- Indexed --------- --
 local function send_createindex(self, db, table, indexes, option)
@@ -311,6 +333,10 @@ local function send_dropindexes(self, db, table, indexname)
   local query = {{"dropIndexes", table}, {"index", indexname}, {"$db", db}}
   local sections = bson_encode_order(unpack(query))
   return self.sock:send(strpack("<i4i4i4i4i4B", #sections + 21, self.reqid, 0, STR_TO_OPCODE["OP_MSG"], 0, 0)) and self.sock:send(sections)
+end
+
+local function read_index(self)
+  return read_msg_body(self)
 end
 -- --------- Indexed --------- --
 
@@ -534,6 +560,15 @@ function protocol.request_aggregate(self, db, table, filter, option)
     return false, "[MONGO ERROR]: Server closed this session when client send aggregate request."
   end
   return read_aggregate(self)
+end
+
+---comment 分布式计算
+function protocol.request_mapreduce(self, db, table, map, reduce, option)
+  if not send_mapreduce(self, db, table, map, reduce, option) then
+    self.connected = false
+    return false, "[MONGO ERROR]: Server closed this session when client send mapreduce request."
+  end
+  return read_mapreduce(self)
 end
 
 ---comment 创建索引

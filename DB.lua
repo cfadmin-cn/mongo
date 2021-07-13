@@ -161,6 +161,12 @@ function DB:aggregate(database, collect, ...)
   return run_query(self, "aggregate", database, collect, ...)
 end
 
+-- 计算
+function DB:mapreduce(database, collect, ...)
+  assert(self and self.INITIALIZATION, "DB needs to be initialized first.")
+  return run_query(self, "mapreduce", database, collect, ...)
+end
+
 -- 创建索引
 function DB:create_indexes(database, collect, ...)
   assert(self and self.INITIALIZATION, "DB needs to be initialized first.")
