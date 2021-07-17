@@ -220,7 +220,14 @@ local function send_insert(self, db, table, array, option)
   for index, tab in ipairs(array) do
     documents[index] = assert(bson_encode(tab))
   end
-  local section1 = bson_encode_order({"insert", table}, {"$db", db}, {"ordered", type(option) == 'table' and option.ordered and true or false})
+  local query = {{"insert", table}, {"$db", db}}
+  if option.ordered then
+    query[#query+1] = {"ordered", true}
+  end
+  if self.have_transaction and option.concern then
+    query[#query+1] = {"writeConcern", option.concern}
+  end
+  local section1 = bson_encode_order(unpack(query))
   local section2 = concat(documents)
   local sections = concat{strpack("<B", 0), section1, strpack("<Bi4z", 1, 10 + 4 + #section2, "documents"), section2 }
   return self.sock:send(strpack("<i4i4i4i4i4", 20 + #sections, self.reqid, 0, STR_TO_OPCODE["OP_MSG"], 0)) and self.sock:send(sections)
