@@ -221,11 +221,13 @@ local function send_insert(self, db, table, array, option)
     documents[index] = assert(bson_encode(tab))
   end
   local query = {{"insert", table}, {"$db", db}}
-  if option.ordered then
-    query[#query+1] = {"ordered", true}
-  end
-  if self.have_transaction and option.concern then
-    query[#query+1] = {"writeConcern", option.concern}
+  if option then
+    if option.ordered then
+      query[#query+1] = {"ordered", true}
+    end
+    if self.have_transaction and option.concern then
+      query[#query+1] = {"writeConcern", option.concern}
+    end
   end
   local section1 = bson_encode_order(unpack(query))
   local section2 = concat(documents)
