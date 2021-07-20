@@ -63,19 +63,27 @@ local OPCODE_TO_STR = {
 }
 
 local function sock_read(sock, bytes)
-  local buffers = new_tab(32, 0)
-  while 1 do
-    local buf = sock:recv(bytes)
-    if not buf then
-      return false
-    end
-    buffers[#buffers+1] = buf
-    bytes = bytes - #buf
-    if bytes == 0 then
-      break
-    end
-  end
-  return concat(buffers)
+	local buffer = sock:recv(bytes)
+	if not buffer then
+		return
+	end
+	if #buffer == bytes then
+		return buffer
+	end
+	bytes = bytes - #buffer
+	local buffers = {buffer}
+  local sock_recv = sock.recv
+	while 1 do
+		buffer = sock_recv(sock, bytes)
+		if not buffer then
+			return
+		end
+    bytes = bytes - #buffer
+		buffers[#buffers+1] = buffer
+		if bytes == 0 then
+			return concat(buffers)
+		end
+	end
 end
 
 local function getn_nonce_payload(username)
