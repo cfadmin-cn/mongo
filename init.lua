@@ -204,7 +204,7 @@ function mongo:create_indexes(database, collect, indexes, option)
   return tab
 end
 
----comment 创建索引
+---comment 获取索引
 ---@param database string            @需要指定的数据库名称
 ---@param collect string             @需要指定的集合名称
 ---@return table, nil | nil, string  @成功返回结果数据, 失败返回`false`与出错信息;
@@ -217,7 +217,7 @@ function mongo:get_indexes(database, collect)
   return tab.cursor.firstBatch
 end
 
----comment 创建索引
+---comment 删除索引
 ---@param database  string          @需要指定的数据库名称
 ---@param collect   string          @需要指定的集合名称
 ---@param indexname string          @需要删除的索引名称
