@@ -112,6 +112,7 @@ static inline const uint8_t* read_cstring(lua_State *L, struct BSON_T *b, size_t
 
 // 读取objectid
 static inline const char * read_objectid(lua_State *L, struct BSON_T *b, size_t *len) {
+  (void)L;
   const uint8_t *p = b->ptr;
   *len = 12;
   b->len -= 12;
@@ -180,7 +181,7 @@ static int bson_decode_array(lua_State *L, struct BSON_T *b) {
       case BSON_MINKEY:
       case BSON_MAXKEY:
         read_cstring(L, b, &key_len);
-        type == BSON_MINKEY ? lua_pushlstring(L, (const char*)'\xFF', 1) : lua_pushlstring(L, (const char*)'\x7F', 1);
+        lua_pushlstring(L, (const char *)(type == BSON_MINKEY ? "\xff" : "\x7f"), 1);
         break;
       case BSON_INT32:
         read_cstring(L, b, &key_len);
@@ -206,6 +207,7 @@ static int bson_decode_array(lua_State *L, struct BSON_T *b) {
         if (value_len > 0)
           vlen += value_len;
         lua_pushfstring(L, "/%s/%s", value, value_len == 0 ? "" : "i");
+        (void)vlen;
         break;
       case BSON_BINARY :
         read_cstring(L, b, &key_len);
@@ -288,7 +290,7 @@ static int bson_decode_table(lua_State *L, struct BSON_T *b) {
       case BSON_MAXKEY:
         key = (const char *)read_cstring(L, b, &key_len);
         lua_pushlstring(L, key, key_len);
-        type == BSON_MINKEY ? lua_pushlstring(L, (const char*)'\xFF', 1) : lua_pushlstring(L, (const char*)'\x7F', 1);
+        lua_pushlstring(L, (const char *)(type == BSON_MINKEY ? "\xff" : "\x7f"), 1);
         break;
       case BSON_INT32:
         key = (const char *)read_cstring(L, b, &key_len);
@@ -318,6 +320,7 @@ static int bson_decode_table(lua_State *L, struct BSON_T *b) {
         if (value_len > 0)
           vlen += value_len;
         lua_pushfstring(L, "/%s/%s", value , value_len == 0 ? "" : "i");
+        (void)vlen;
         break;
       case BSON_BINARY :
         key = (const char *)read_cstring(L, b, &key_len);
