@@ -110,8 +110,8 @@ local BSON_DECIMAL        = 0x13 -- (DECIMAL)
 local BSON_MINKEY         = 0xFF -- (MIN KEY)
 local BSON_MAXKEY         = 0x7F -- (MAX KEY)
 
-local MinKey = '\x7F'
-local MaxKey = '\xFF'
+local MinKey = '\xFF'
+local MaxKey = '\x7F'
 
 local empty_table = "\x05\x00\x00\x00\x00"
 
@@ -641,7 +641,7 @@ end
 ---@return function  @该类型的构造方法
 function bson.maxkey()
   return function ()
-    return MaxKey, BSON_MINKEY
+    return MaxKey, BSON_MAXKEY
   end
 end
 
