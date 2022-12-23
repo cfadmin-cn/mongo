@@ -386,7 +386,7 @@ end
 local function send_gridfs_chunks_delete(self, db, table, filter, limit)
   local section1 = bson_encode_order({"delete", table .. ".chunks"}, {"$db", db}, {"ordered", true})
   local section2 = bson_encode_order({"q", filter}, {"limit", toint(limit) and toint(limit) > 0 and toint(limit) or 0})
-  local sections = concat{strpack("<B", 0), section1, strpack("<Bi4z", 1, 10 + 4 + #section2, "documents"), section2 }
+  local sections = concat{strpack("<B", 0), section1, strpack("<Bi4z", 1, 8 + 4 + #section2, "deletes"), section2 }
   return self.sock:send(strpack("<i4i4i4i4i4", 20 + #sections, self.reqid, 0, STR_TO_OPCODE["OP_MSG"], 0)) and self.sock:send(sections)
 end
 
